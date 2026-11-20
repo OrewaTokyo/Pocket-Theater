@@ -28,4 +28,14 @@ assert.strictEqual(u.cat("Series").icon, "\u{1F4FA}");
 assert.strictEqual(u.cat("Mystery").label, "Mystery");
 assert.strictEqual(new Set(PT.categories).size, PT.categories.length);
 
+// Sign-up rules match the phone's.
+assert.strictEqual(u.usernameProblem("anime_fan"), null);
+assert.ok(u.usernameProblem("ab"));
+assert.ok(u.usernameProblem("Has Space"));
+assert.ok(u.usernameProblem("UPPER"));
+assert.ok(u.usernameProblem("a".repeat(21)));
+assert.strictEqual(u.passwordProblem("12345678"), null);
+assert.ok(u.passwordProblem("short"));
+assert.ok(u.passwordProblem("x".repeat(65)));
+
 console.log("web-util OK");

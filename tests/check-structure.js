@@ -61,14 +61,20 @@ for (const m of manifest.matchAll(/android:name="\.([\w.]+)"/g)) {
 // 4. Web site: every file is used by index.html, and everything index.html uses exists.
 const WEB = "app/src/main/assets/web";
 const WEB_FOLDERS = ["pages", "components", "styles", "scripts"];
-const html = fs.readFileSync(path.join(root, WEB, "index.html"), "utf8");
-const used = new Set([...html.matchAll(/(?:src|href)="\/([^"]+)"/g)].map((m) => m[1]));
-used.forEach((rel) => { if (!exists(WEB + "/" + rel)) bad("index.html uses /" + rel + " but the file does not exist."); });
+// The signed-in site (index.html) and the sign in screen (login.html) each load their own files.
+const PAGES = ["index.html", "login.html"];
+const used = new Set();
+PAGES.forEach((page) => {
+  if (!exists(WEB + "/" + page)) { bad("Missing " + WEB + "/" + page); return; }
+  const html = fs.readFileSync(path.join(root, WEB, page), "utf8");
+  [...html.matchAll(/(?:src|href)="\/([^"]+)"/g)].forEach((m) => used.add(m[1]));
+});
+used.forEach((rel) => { if (!exists(WEB + "/" + rel)) bad("A page uses /" + rel + " but the file does not exist."); });
 const webFiles = walk(WEB).map((f) => f.slice(WEB.length + 1));
 webFiles.forEach((rel) => {
-  if (rel === "index.html") return;
+  if (PAGES.includes(rel)) return;
   if (!WEB_FOLDERS.includes(rel.split("/")[0])) bad("web/" + rel + " is not inside pages, components, styles or scripts.");
-  else if (/\.(js|css)$/.test(rel) && !used.has(rel)) bad("web/" + rel + " is not used by index.html.");
+  else if (/\.(js|css)$/.test(rel) && !used.has(rel)) bad("web/" + rel + " is not used by index.html or login.html.");
 });
 
 if (problems.length) {

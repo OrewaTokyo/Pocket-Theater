@@ -10,16 +10,16 @@ PDFs and more. No internet, no accounts, no cloud.
 - 📱 Runs as a background server on Android 12+
 - 📂 Share only the folders you pick, read-only
 - 🎞️ Video streaming with seeking, plus an image and PDF viewer
-- 🔒 Password login (HTTPS is planned)
+- 🔒 Real accounts: people request access on the website, you approve them on the phone, and you can reset passwords there (HTTPS is planned)
 - 📶 Works with just Wi-Fi or the phone's hotspot
 - 🎟️ Series, Anime, Movies, Gaming and Documents shelves, each with its own colour and a ticket-stub look
 
 ## Project layout
 | Folder | What lives there |
 | --- | --- |
-| `app/src/main/java/.../core` | Server, security and folder access |
+| `app/src/main/java/.../core` | Server, accounts, sessions and folder access |
 | `app/src/main/java/.../service` | Background service and Wi-Fi locks |
-| `app/src/main/java/.../ui` | Phone screens, components, theme |
+| `app/src/main/java/.../ui` | Phone screen (website link and admin tools), components, theme |
 | `app/src/main/assets/web` | The site your laptop sees (pages, components, styles, scripts) |
 | `docs` | Setup and security notes |
 | `tests` | Quick checks that run before every build (layout, web helpers) |

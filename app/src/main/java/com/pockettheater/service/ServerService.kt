@@ -11,6 +11,7 @@ import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.IBinder
 import com.pockettheater.core.server.PocketServer
+import com.pockettheater.core.storage.UserStore
 import com.pockettheater.ui.screens.MainActivity
 import com.pockettheater.util.NetworkUtil
 import fi.iki.elonen.NanoHTTPD
@@ -45,7 +46,7 @@ class ServerService : Service() {
     private fun startServer() {
         if (server != null) return
         try {
-            val s = PocketServer(applicationContext, PORT)
+            val s = PocketServer(applicationContext, PORT) { name -> announceRequest(name) }
             s.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
             server = s
             locks.acquire()
@@ -63,6 +64,27 @@ class ServerService : Service() {
         server = null
         locks.release()
         isRunning = false
+    }
+
+    /** Tells the admin, even with the screen off, that someone is waiting to be approved. */
+    private fun announceRequest(name: String) {
+        val nm = getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannel(
+            NotificationChannel(REQUEST_CHANNEL_ID, "Sign-up requests", NotificationManager.IMPORTANCE_DEFAULT)
+        )
+        val waiting = UserStore(this).pending().size
+        val open = PendingIntent.getActivity(
+            this, 2, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE
+        )
+        val text = if (waiting > 1) "$waiting people are waiting for approval" else "$name wants to join. Open the app to approve."
+        val notification = Notification.Builder(this, REQUEST_CHANNEL_ID)
+            .setContentTitle("New sign-up request")
+            .setContentText(text)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .build()
+        nm.notify(NOTIF_REQUEST, notification)
     }
 
     private fun showNotification() {
@@ -101,6 +123,8 @@ class ServerService : Service() {
         const val PORT = 8080
         const val ACTION_STOP = "com.pockettheater.STOP"
         private const val CHANNEL_ID = "server_status"
+        private const val REQUEST_CHANNEL_ID = "signup_requests"
+        const val NOTIF_REQUEST = 2
         private const val NOTIF_ID = 1
 
         @Volatile var isRunning = false

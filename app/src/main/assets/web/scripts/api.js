@@ -14,12 +14,24 @@ PT.categories = PT.cats.map((c) => c.id);
 PT.api = {
   async json(url) {
     const res = await fetch(url);
+    if (res.status === 401) {
+      location.href = "/login.html"; // signed out, or the admin turned the account off
+      throw new Error("Signed out");
+    }
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       throw new Error(body.error || "Request failed (" + res.status + ")");
     }
     return res.json();
   },
+  // Sends JSON. Errors from the phone come back as plain sentences in err.message.
+  async post(url, body) {
+    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Something went wrong (" + res.status + ")");
+    return data;
+  },
+  me() { return this.json("/api/me"); },
   libraries() { return this.json("/api/libraries"); },
   list(lib, parts) {
     return this.json("/api/list?lib=" + encodeURIComponent(lib) + "&path=" + encodeURIComponent(parts.join("/")));
@@ -64,6 +76,15 @@ PT.util = {
     return { folder: "📁", video: "🎞️", image: "🖼️", pdf: "📄", audio: "🎧", file: "📦" }[kind];
   },
   enc(part) { return encodeURIComponent(part); },
+  // Same rules as the phone. A sentence when something is wrong, otherwise null.
+  usernameProblem(name) {
+    return /^[a-z0-9_]{3,20}$/.test(name) ? null : "Username must be 3 to 20 letters, numbers or _ (lowercase).";
+  },
+  passwordProblem(password) {
+    if (password.length < 8) return "Password needs at least 8 characters.";
+    if (password.length > 64) return "Password can be at most 64 characters.";
+    return null;
+  },
   // Look up a shelf by id. An id the site does not know still gets a sensible look.
   cat(id) {
     return PT.cats.find((c) => c.id === id) || { id, label: id, icon: "📦", accent: "#a39bc4", main: false, blurb: "" };

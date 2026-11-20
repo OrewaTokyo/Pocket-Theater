@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in - Pocket Theater</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/styles/theme/theme.css">
+  <link rel="stylesheet" href="/styles/auth/auth.css">
+</head>
+<body>
+  <main class="auth">
+    <section class="auth-card">
+      <p class="auth-brand">🎟️ Pocket Theater</p>
+      <h1 id="auth-title">Welcome back</h1>
+      <p class="auth-sub">Series, anime, movies and games, straight from a private phone.</p>
+
+      <div class="tabs" role="tablist" aria-label="Sign in or request access">
+        <button type="button" role="tab" id="tab-signin" aria-selected="true">Sign in</button>
+        <button type="button" role="tab" id="tab-register" aria-selected="false">Request access</button>
+      </div>
+
+      <form id="form-signin" novalidate>
+        <label for="si-user">Username</label>
+        <input id="si-user" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+        <label for="si-pass">Password</label>
+        <input id="si-pass" type="password" autocomplete="current-password" required>
+        <label class="check"><input type="checkbox" class="show-pass" data-for="si-pass"> Show password</label>
+        <p class="form-msg" id="si-msg" role="alert"></p>
+        <button class="go" type="submit">Sign in</button>
+        <p class="hint">Forgot your password? Ask the admin to reset it on the phone.</p>
+      </form>
+
+      <form id="form-register" novalidate hidden>
+        <p class="hint">Pick a username and password. The admin gets your request on the phone. Once they approve it, sign in here.</p>
+        <label for="rg-user">Username</label>
+        <input id="rg-user" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+        <span class="hint">3 to 20 letters, numbers or _</span>
+        <label for="rg-pass">Password</label>
+        <input id="rg-pass" type="password" autocomplete="new-password" required>
+        <span class="hint">At least 8 characters</span>
+        <label for="rg-pass2">Repeat password</label>
+        <input id="rg-pass2" type="password" autocomplete="new-password" required>
+        <label class="check"><input type="checkbox" class="show-pass" data-for="rg-pass rg-pass2"> Show passwords</label>
+        <p class="form-msg" id="rg-msg" role="alert"></p>
+        <button class="go" type="submit">Send request</button>
+      </form>
+
+      <div id="sent" hidden>
+        <h2>Request sent 🎬</h2>
+        <p>The admin was told on the phone. When they approve you, come back here and sign in with the username and password you just chose.</p>
+        <button class="go" type="button" id="to-signin">Go to sign in</button>
+      </div>
+    </section>
+    <p class="auth-foot">Only works on the same Wi-Fi as the phone. Passwords are stored scrambled on the phone.</p>
+  </main>
+
+  <script src="/scripts/api.js"></script>
+  <script src="/pages/auth/auth.js"></script>
+</body>
+</html>

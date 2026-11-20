@@ -4,9 +4,11 @@
 2. The quick checks run first (folder layout, web helper tests). If one fails, nothing is built.
 3. The build then checks the APK itself (app id, version, Android 12 minimum, permissions, signature) and publishes it as a release.
 4. On the phone, open the repo's **Releases** page, download `PocketTheater-v….apk` and install it.
-5. Open Pocket Theater, tap **Add folder**, pick a folder, and choose its category.
-6. Tap **Open theater**. Open the link shown on the phone from your laptop browser.
-   Sign in with user `theater` and the password shown in the app.
+5. Open Pocket Theater and tap **Add folder**. Pick a folder and choose what is in it (Series, Anime, Movies, Gaming and so on).
+6. Tap **Open theater**. The phone shows the website link. Open it from your laptop browser.
+7. Each person taps **Request access** on the sign-in page and picks a username and password. You get a notification on the phone.
+8. In the app, under **Admin tools**, tap **Approve** on their request. After that they sign in with their own username and password.
+9. Someone forgot their password? In **Admin tools > Accounts**, tap their name and choose **Reset password**. The phone shows a new password. Give it to them. They can change it from **Account** on the website.
 
 The phone and laptop only need to share a Wi-Fi network (or the laptop joins the phone's hotspot). No internet is used.
 

@@ -1,14 +1,13 @@
 package com.pockettheater.core.storage
 
 import android.content.Context
-import com.pockettheater.core.security.Auth
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
 data class SharedLibrary(val id: String, val name: String, val category: String, val uri: String)
 
-/** Remembers which folders are shared and the server password. */
+/** Remembers which folders are shared. */
 class ShareStore(context: Context) {
     private val prefs = context.applicationContext
         .getSharedPreferences("pocket_theater", Context.MODE_PRIVATE)
@@ -31,18 +30,6 @@ class ShareStore(context: Context) {
 
     fun remove(id: String) = save(libraries().filter { it.id != id })
 
-    fun password(): String {
-        val saved = prefs.getString(KEY_PASSWORD, null)
-        if (saved != null) return saved
-        return regeneratePassword()
-    }
-
-    fun regeneratePassword(): String {
-        val fresh = Auth.newPassword()
-        prefs.edit().putString(KEY_PASSWORD, fresh).apply()
-        return fresh
-    }
-
     private fun save(list: List<SharedLibrary>) {
         val arr = JSONArray()
         list.forEach {
@@ -53,7 +40,6 @@ class ShareStore(context: Context) {
 
     companion object {
         private const val KEY_LIBS = "libraries"
-        private const val KEY_PASSWORD = "password"
         // These ids are saved on the phone, so never rename one (Games is shown as Gaming).
         val CATEGORIES = listOf("Series", "Anime", "Movies", "Games", "Documents", "Other")
     }
