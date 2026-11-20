@@ -11,5 +11,12 @@
 The phone and laptop only need to share a Wi-Fi network (or the laptop joins the phone's hotspot). No internet is used.
 
 ## Updating
-Every build is signed with a temporary key that GitHub creates fresh each time, so Android may refuse to install a new build over the old one.
-If that happens, uninstall the old app first. You will need to add your folders again. A permanent signing key fixes this.
+Every build is signed with the same permanent key, kept in the repo's secrets, so each new build installs over the old one and keeps your folders and settings.
+
+Setup, once: in the repo open **Settings > Secrets and variables > Actions** and add two repository secrets:
+- `ANDROID_KEYSTORE_BASE64` - the whole content of the keystore text file
+- `ANDROID_KEYSTORE_PASSWORD` - the keystore password
+
+Keep a copy of the keystore file and password somewhere safe. If they are lost, a new key means uninstalling the app once.
+
+If you installed a build made before the permanent key existed, Android will refuse the first permanent-key build over it. Uninstall the old app once; after that, updates install over each other.

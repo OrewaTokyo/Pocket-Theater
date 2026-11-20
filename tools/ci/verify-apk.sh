@@ -18,7 +18,11 @@ BADGING=$("$BT/aapt2" dump badging "$APK")
 echo "$BADGING" | grep -m1 "^package:"
 echo "$BADGING" | grep -q "^package: name='com.pockettheater' versionCode='$CODE' versionName='$NAME'" \
   || fail "APK id or version is wrong. Expected com.pockettheater, code $CODE, name $NAME."
-echo "$BADGING" | grep -q "^sdkVersion:'31'" || fail "APK minimum Android version is not 12 (API 31)."
+# Different build-tools versions print the minimum Android version as sdkVersion or as minSdkVersion, so accept both.
+if ! echo "$BADGING" | grep -Eq "^(min)?[sS]dkVersion:'31'"; then
+  echo "Lines about the Android version in the APK:"; echo "$BADGING" | grep -i "sdkversion" || echo "(none)"
+  fail "APK minimum Android version is not 12 (API 31)."
+fi
 
 for perm in INTERNET FOREGROUND_SERVICE FOREGROUND_SERVICE_SPECIAL_USE POST_NOTIFICATIONS; do
   echo "$BADGING" | grep -q "uses-permission: name='android.permission.$perm'" || fail "Permission $perm is missing."
@@ -32,5 +36,11 @@ echo "$LIST" | grep -q '^assets/web/index.html$' || fail "The laptop site (asset
 FP=$(grep -m1 'SHA-256 digest' /tmp/certs.txt | awk '{print $NF}')
 [ -n "$FP" ] || fail "APK is not signed."
 echo "Signing key SHA-256: $FP"
+# When the workflow knows the permanent key's fingerprint, the APK must be signed by exactly that key.
+if [ -n "${EXPECTED_KEY_SHA256:-}" ]; then
+  [ "$FP" = "$(echo "$EXPECTED_KEY_SHA256" | tr -d ':' | tr 'A-F' 'a-f')" ] \
+    || fail "APK is not signed with the permanent key (got $FP). New builds would not install over the old one."
+  echo "Signed with the permanent key."
+fi
 [ -z "${GITHUB_OUTPUT:-}" ] || echo "key=$FP" >> "$GITHUB_OUTPUT"
 echo "APK checks passed."
