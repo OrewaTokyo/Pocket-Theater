@@ -1,0 +1,24 @@
+const assert = require("assert");
+const path = require("path");
+
+global.window = global;
+require(path.join(__dirname, "../../app/src/main/assets/web/scripts/api.js"));
+const u = PT.util;
+
+assert.strictEqual(u.size(-1), "");
+assert.strictEqual(u.size(0), "0 B");
+assert.strictEqual(u.size(1536), "1.5 KB");
+assert.strictEqual(u.size(5 * 1024 * 1024), "5.0 MB");
+
+assert.strictEqual(u.kind({ name: "a", dir: true }), "folder");
+assert.strictEqual(u.kind({ name: "ep01.mkv", mime: "" }), "video");
+assert.strictEqual(u.kind({ name: "x.bin", mime: "video/mp4" }), "video");
+assert.strictEqual(u.kind({ name: "cover.PNG", mime: "" }), "image");
+assert.strictEqual(u.kind({ name: "book.pdf", mime: "" }), "pdf");
+assert.strictEqual(u.kind({ name: "song.flac", mime: "" }), "audio");
+assert.strictEqual(u.kind({ name: "notes.txt", mime: "text/plain" }), "file");
+
+assert.strictEqual(u.enc("a b/c"), "a%20b%2Fc");
+assert.strictEqual(PT.api.fileUrl("ab12", ["Movies", "a b.mp4"]), "/file?lib=ab12&path=Movies%2Fa%20b.mp4");
+
+console.log("web-util OK");

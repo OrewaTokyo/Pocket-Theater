@@ -22,6 +22,8 @@ PDFs and more. No internet, no accounts, no cloud.
 | `app/src/main/java/.../ui` | Phone screens, components, theme |
 | `app/src/main/assets/web` | The site your laptop sees (pages, components, styles, scripts) |
 | `docs` | Setup and security notes |
+| `tests` | Quick checks that run before every build (layout, web helpers) |
+| `tools/ci` | Script that verifies the finished APK |
 | `.github/workflows` | APK build |
 
 ## Build
