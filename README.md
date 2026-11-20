@@ -11,6 +11,7 @@ PDFs and more. No internet, no accounts, no cloud.
 - 📂 Share only the folders you pick, read-only
 - 🎞️ Video streaming with seeking, plus an image and PDF viewer
 - 📊 Phone app with three tabs: Dashboard (open/close, link, wake time, users, data sent, requests, CPU, RAM, battery, traffic), Folders (placeholder for now) and Profile (Admin tools, Settings)
+- 🔐 Optional app lock (Profile > Settings): the phone app asks for your fingerprint, face or phone PIN
 - 🔒 Real accounts: people request access on the website, you approve them on the phone, and you can reset passwords there (HTTPS is planned)
 - 📶 Works with just Wi-Fi or the phone's hotspot
 - 🎟️ Series, Anime, Movies, Gaming and Documents shelves, each with its own colour and a ticket-stub look

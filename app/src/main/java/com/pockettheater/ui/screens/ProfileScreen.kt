@@ -9,6 +9,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import com.pockettheater.core.security.AppLock
 import com.pockettheater.core.storage.UserStore
 import com.pockettheater.ui.components.MATCH
 import com.pockettheater.ui.components.WRAP
@@ -20,10 +21,10 @@ import com.pockettheater.ui.components.textView
 import com.pockettheater.ui.theme.Theme
 
 /** Who you are on this phone, with Admin tools and Settings one tap away. */
-class ProfileScreen(private val activity: Activity, onAddFolder: () -> Unit) : Screen {
+class ProfileScreen(private val activity: Activity, appLock: AppLock, onAddFolder: () -> Unit) : Screen {
     private val users = UserStore(activity)
     private val admin = AdminToolsPage(activity, onAddFolder)
-    private val settings = SettingsPage(activity)
+    private val settings = SettingsPage(activity, appLock)
     private val holder = FrameLayout(activity)
     private val waitingText = activity.textView("", 14f, Theme.Muted)
     private var page: Screen? = null

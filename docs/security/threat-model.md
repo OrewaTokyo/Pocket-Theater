@@ -11,6 +11,6 @@ Protected now:
 
 Not protected yet:
 - Traffic is plain HTTP, so someone on the same Wi-Fi could read it, including a password as it is typed. Use a network you trust until HTTPS is added.
-- Anyone who can open the phone app is the admin. Keep the phone locked.
+- Anyone who can open the phone app is the admin. Turn on the app lock in Profile > Settings: it uses the phone's own fingerprint, face or PIN, and the app stores no PIN of its own. The lock only covers the phone app. The website keeps running while it is locked.
 
 Planned: HTTPS with a certificate made on the phone, QR pairing.

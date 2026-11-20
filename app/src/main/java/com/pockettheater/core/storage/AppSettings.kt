@@ -16,4 +16,14 @@ class AppSettings(context: Context) {
     var notifyRequests: Boolean
         get() = prefs.getBoolean("notify_requests", true)
         set(value) { prefs.edit().putBoolean("notify_requests", value).apply() }
+
+    /** When on, opening the app asks for the phone's fingerprint, face or PIN first. */
+    var lockEnabled: Boolean
+        get() = prefs.getBoolean("lock_enabled", false)
+        set(value) { prefs.edit().putBoolean("lock_enabled", value).apply() }
+
+    /** How long the app may be out of sight before it locks again. 0 means every time. */
+    var lockAfterSeconds: Int
+        get() = prefs.getInt("lock_after_seconds", 60)
+        set(value) { prefs.edit().putInt("lock_after_seconds", value).apply() }
 }
