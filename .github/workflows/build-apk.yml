@@ -36,6 +36,21 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.9
+      - name: Load the permanent signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          [ -n "$KEYSTORE_BASE64" ] || { echo "::error::Secret ANDROID_KEYSTORE_BASE64 is missing. Add it in Settings > Secrets and variables > Actions."; exit 1; }
+          [ -n "$KEYSTORE_PASSWORD" ] || { echo "::error::Secret ANDROID_KEYSTORE_PASSWORD is missing. Add it in Settings > Secrets and variables > Actions."; exit 1; }
+          echo "$KEYSTORE_BASE64" | tr -d ' \n\r' | base64 -d > "$RUNNER_TEMP/pocket-theater.jks" \
+            || { echo "::error::ANDROID_KEYSTORE_BASE64 is not valid base64. Paste the whole text file content again."; exit 1; }
+          FP=$(keytool -list -v -keystore "$RUNNER_TEMP/pocket-theater.jks" -alias pockettheater -storepass "$KEYSTORE_PASSWORD" 2>/dev/null | grep -m1 'SHA256:' | awk '{print $NF}') \
+            || true
+          [ -n "$FP" ] || { echo "::error::The keystore could not be opened. Check ANDROID_KEYSTORE_PASSWORD and that the alias is pockettheater."; exit 1; }
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/pocket-theater.jks" >> "$GITHUB_ENV"
+          echo "EXPECTED_KEY_SHA256=$FP" >> "$GITHUB_ENV"
+          echo "Permanent key loaded, SHA-256 $FP"
       - name: Work out the version of this build
         id: ver
         run: |
@@ -47,6 +62,7 @@ jobs:
         env:
           APP_VERSION_NAME: ${{ steps.ver.outputs.name }}
           APP_VERSION_CODE: ${{ steps.ver.outputs.code }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: gradle assembleDebug --no-daemon
       - name: Check the APK has the right id, version, permissions and signature
         id: fp
@@ -59,6 +75,6 @@ jobs:
           tag_name: v${{ steps.ver.outputs.name }}
           name: Pocket Theater v${{ steps.ver.outputs.name }}
           target_commitish: ${{ github.sha }}
-          body: "Debug build, version code ${{ steps.ver.outputs.code }}, signing key SHA-256 ${{ steps.fp.outputs.key }}. If Android refuses to install it over the old one, uninstall the old one first (see docs/setup/build-and-install.md)."
+          body: "Debug build, version code ${{ steps.ver.outputs.code }}, signing key SHA-256 ${{ steps.fp.outputs.key }}. Signed with the permanent key, so it installs over the previous build."
           generate_release_notes: true
           files: PocketTheater-v${{ steps.ver.outputs.name }}.apk
