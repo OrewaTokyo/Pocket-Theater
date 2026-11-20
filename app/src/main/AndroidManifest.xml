@@ -16,13 +16,18 @@
         android:theme="@android:style/Theme.Material.NoActionBar">
 
         <activity
-            android:name=".ui.screens.MainActivity"
-            android:exported="true">
+            android:name=".ui.screens.SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.PocketTheater.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ui.screens.MainActivity"
+            android:exported="false" />
 
         <service
             android:name=".service.ServerService"

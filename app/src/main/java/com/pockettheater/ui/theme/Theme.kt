@@ -9,6 +9,8 @@ object Theme {
     val Muted = 0xFFA39BC4.toInt()
     val Pink = 0xFFFF7BB5.toInt()
     val Neon = 0xFF5CFF9D.toInt()
+    val SplashGlow = 0xFF2B1B52.toInt()
+    val SplashEdge = 0xFF0B0816.toInt()
 
     /** The shelf's colour. Same colours as the laptop site. */
     fun categoryColor(category: String): Int = when (category) {
