@@ -1,6 +1,15 @@
 window.PT = window.PT || {};
 PT.renderId = 0;
-PT.categories = ["Movies", "Anime", "Games", "Documents", "Other"];
+// One place that defines every shelf. "id" is what the phone app saves, so never rename an id: Games is shown as Gaming.
+PT.cats = [
+  { id: "Series", label: "Series", icon: "📺", accent: "#5ee0ff", main: true, blurb: "Shows, seasons and binge nights" },
+  { id: "Anime", label: "Anime", icon: "🍥", accent: "#ff7bb5", main: true, blurb: "Episodes, OVAs and movies" },
+  { id: "Movies", label: "Movies", icon: "🎬", accent: "#ffb547", main: true, blurb: "Hollywood and beyond" },
+  { id: "Games", label: "Gaming", icon: "🎮", accent: "#5cff9d", main: true, blurb: "Gameplay, trailers and game files" },
+  { id: "Documents", label: "Documents", icon: "📚", accent: "#a39bc4", main: false, blurb: "PDFs, books and notes" },
+  { id: "Other", label: "Other", icon: "📦", accent: "#a39bc4", main: false, blurb: "Everything else" },
+];
+PT.categories = PT.cats.map((c) => c.id);
 
 PT.api = {
   async json(url) {
@@ -55,4 +64,8 @@ PT.util = {
     return { folder: "📁", video: "🎞️", image: "🖼️", pdf: "📄", audio: "🎧", file: "📦" }[kind];
   },
   enc(part) { return encodeURIComponent(part); },
+  // Look up a shelf by id. An id the site does not know still gets a sensible look.
+  cat(id) {
+    return PT.cats.find((c) => c.id === id) || { id, label: id, icon: "📦", accent: "#a39bc4", main: false, blurb: "" };
+  },
 };

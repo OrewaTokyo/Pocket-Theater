@@ -21,4 +21,11 @@ assert.strictEqual(u.kind({ name: "notes.txt", mime: "text/plain" }), "file");
 assert.strictEqual(u.enc("a b/c"), "a%20b%2Fc");
 assert.strictEqual(PT.api.fileUrl("ab12", ["Movies", "a b.mp4"]), "/file?lib=ab12&path=Movies%2Fa%20b.mp4");
 
+// Shelves: Series sits beside Anime, Movies and Gaming. The saved id "Games" is shown as "Gaming".
+assert.deepStrictEqual(PT.categories.slice(0, 4), ["Series", "Anime", "Movies", "Games"]);
+assert.strictEqual(u.cat("Games").label, "Gaming");
+assert.strictEqual(u.cat("Series").icon, "\u{1F4FA}");
+assert.strictEqual(u.cat("Mystery").label, "Mystery");
+assert.strictEqual(new Set(PT.categories).size, PT.categories.length);
+
 console.log("web-util OK");

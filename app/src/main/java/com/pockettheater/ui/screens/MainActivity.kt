@@ -144,7 +144,7 @@ class MainActivity : Activity() {
             }
             val names = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             names.addView(textView(lib.name, 17f, Theme.Ink, bold = true))
-            names.addView(textView(lib.category, 13f, Theme.Muted))
+            names.addView(textView(Theme.categoryLabel(lib.category), 14f, Theme.categoryColor(lib.category), bold = true))
             row.addView(names, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             row.addView(actionButton("Remove", filled = false) { removeFolder(lib.id, lib.uri) })
             folderBox.addView(row)
@@ -178,7 +178,7 @@ class MainActivity : Activity() {
         val name = browser.displayName(uri)
         AlertDialog.Builder(this)
             .setTitle("What is in \"$name\"?")
-            .setItems(ShareStore.CATEGORIES.toTypedArray()) { _, which ->
+            .setItems(ShareStore.CATEGORIES.map { Theme.categoryLabel(it) }.toTypedArray()) { _, which ->
                 store.add(name, ShareStore.CATEGORIES[which], uri.toString())
                 rebuildFolders()
             }

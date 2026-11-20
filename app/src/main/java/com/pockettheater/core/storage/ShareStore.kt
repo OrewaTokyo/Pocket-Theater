@@ -54,6 +54,7 @@ class ShareStore(context: Context) {
     companion object {
         private const val KEY_LIBS = "libraries"
         private const val KEY_PASSWORD = "password"
-        val CATEGORIES = listOf("Movies", "Anime", "Games", "Documents", "Other")
+        // These ids are saved on the phone, so never rename one (Games is shown as Gaming).
+        val CATEGORIES = listOf("Series", "Anime", "Movies", "Games", "Documents", "Other")
     }
 }

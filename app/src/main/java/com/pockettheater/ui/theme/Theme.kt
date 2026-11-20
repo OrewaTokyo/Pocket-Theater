@@ -7,4 +7,25 @@ object Theme {
     val Cyan = 0xFF5EE0FF.toInt()
     val Ink = 0xFFF3EEF8.toInt()
     val Muted = 0xFFA39BC4.toInt()
+    val Pink = 0xFFFF7BB5.toInt()
+    val Neon = 0xFF5CFF9D.toInt()
+
+    /** The shelf's colour. Same colours as the laptop site. */
+    fun categoryColor(category: String): Int = when (category) {
+        "Series" -> Cyan
+        "Anime" -> Pink
+        "Movies" -> Marquee
+        "Games" -> Neon
+        else -> Muted
+    }
+
+    /** The shelf's name with its icon, as shown on the phone. */
+    fun categoryLabel(category: String): String = when (category) {
+        "Series" -> "\uD83D\uDCFA Series"
+        "Anime" -> "\uD83C\uDF65 Anime"
+        "Movies" -> "\uD83C\uDFAC Movies"
+        "Games" -> "\uD83C\uDFAE Gaming"
+        "Documents" -> "\uD83D\uDCDA Documents"
+        else -> "\uD83D\uDCE6 $category"
+    }
 }

@@ -3,7 +3,7 @@
 Turn your old Android phone into a private, offline movie theater.
 
 Pocket Theater runs a small server on your phone. Open it from your laptop
-over Wi-Fi and browse the folders you choose: movies, anime, games, images,
+over Wi-Fi and browse the folders you choose: series, anime, movies, games, images,
 PDFs and more. No internet, no accounts, no cloud.
 
 ## Features
@@ -12,7 +12,7 @@ PDFs and more. No internet, no accounts, no cloud.
 - 🎞️ Video streaming with seeking, plus an image and PDF viewer
 - 🔒 Password login (HTTPS is planned)
 - 📶 Works with just Wi-Fi or the phone's hotspot
-- 🎟️ Movies, Anime, Games and Documents shelves with a ticket-stub look
+- 🎟️ Series, Anime, Movies, Gaming and Documents shelves, each with its own colour and a ticket-stub look
 
 ## Project layout
 | Folder | What lives there |
