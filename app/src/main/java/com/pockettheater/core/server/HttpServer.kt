@@ -9,6 +9,7 @@ import com.pockettheater.core.security.PathGuard
 import com.pockettheater.core.security.SessionStore
 import com.pockettheater.core.storage.Account
 import com.pockettheater.core.storage.AccountStatus
+import com.pockettheater.core.storage.AppSettings
 import com.pockettheater.core.storage.DocumentBrowser
 import com.pockettheater.core.storage.ShareStore
 import com.pockettheater.core.storage.UserStore
@@ -33,6 +34,7 @@ class PocketServer(
     private val appContext = context.applicationContext
     private val store = ShareStore(appContext)
     private val users = UserStore(appContext)
+    private val settings = AppSettings(appContext)
     private val sessions = SessionStore()
     private val loginThrottle = LoginThrottle(8, 10 * 60_000L)
     private val signupThrottle = LoginThrottle(5, 10 * 60_000L)
@@ -52,12 +54,14 @@ class PocketServer(
     }
 
     private fun route(session: IHTTPSession): Response {
+        ServerStats.request()
         val uri = session.uri
         if (session.method == Method.POST && uri.startsWith("/api/")) return post(session, uri)
         if (session.method != Method.GET && session.method != Method.HEAD) {
             return jsonError(Status.METHOD_NOT_ALLOWED, "Not allowed")
         }
         val user = currentUser(session)
+        if (user != null) ServerStats.visit(user.name)
         return when {
             uri == "/api/me" ->
                 if (user == null) signedOut() else jsonResponse(Status.OK, JSONObject().put("username", user.name))
@@ -97,6 +101,9 @@ class PocketServer(
     }
 
     private fun register(session: IHTTPSession, json: JSONObject): Response {
+        if (!settings.signupsOpen) {
+            return jsonError(Status.FORBIDDEN, "New sign-ups are closed right now. Ask the admin.")
+        }
         val ip = clientIp(session)
         if (signupThrottle.blocked(ip)) {
             return jsonError(Http.TOO_MANY, "Too many requests from this device. Try again in a few minutes.")

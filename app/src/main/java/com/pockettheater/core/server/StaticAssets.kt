@@ -15,7 +15,7 @@ class StaticAssets(private val context: Context) {
         val segments = PathGuard.segments(requested) ?: return jsonError(Status.NOT_FOUND, "Not found")
         val path = "web/" + segments.joinToString("/")
         return try {
-            newChunkedResponse(Status.OK, mimeFor(path), context.assets.open(path))
+            newChunkedResponse(Status.OK, mimeFor(path), CountingInputStream(context.assets.open(path)))
         } catch (e: IOException) {
             jsonError(Status.NOT_FOUND, "Not found")
         }

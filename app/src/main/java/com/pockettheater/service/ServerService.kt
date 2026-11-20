@@ -11,6 +11,8 @@ import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.IBinder
 import com.pockettheater.core.server.PocketServer
+import com.pockettheater.core.server.ServerStats
+import com.pockettheater.core.storage.AppSettings
 import com.pockettheater.core.storage.UserStore
 import com.pockettheater.ui.screens.MainActivity
 import com.pockettheater.util.NetworkUtil
@@ -52,6 +54,7 @@ class ServerService : Service() {
             locks.acquire()
             lastError = null
             isRunning = true
+            ServerStats.begin(applicationContext)
         } catch (e: Exception) {
             lastError = e.message ?: "Could not start the server"
             isRunning = false
@@ -60,6 +63,7 @@ class ServerService : Service() {
     }
 
     private fun stopServer() {
+        if (server != null) ServerStats.end()
         server?.stop()
         server = null
         locks.release()
@@ -68,6 +72,7 @@ class ServerService : Service() {
 
     /** Tells the admin, even with the screen off, that someone is waiting to be approved. */
     private fun announceRequest(name: String) {
+        if (!AppSettings(this).notifyRequests) return
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
             NotificationChannel(REQUEST_CHANNEL_ID, "Sign-up requests", NotificationManager.IMPORTANCE_DEFAULT)

@@ -1,0 +1,217 @@
+package com.pockettheater.ui.screens
+
+import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Intent
+import android.graphics.drawable.GradientDrawable
+import android.view.Gravity
+import android.view.View
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
+import android.widget.Toast
+import com.pockettheater.core.server.ServerStats
+import com.pockettheater.core.storage.UserStore
+import com.pockettheater.service.ServerService
+import com.pockettheater.ui.components.BarChart
+import com.pockettheater.ui.components.MATCH
+import com.pockettheater.ui.components.RingGauge
+import com.pockettheater.ui.components.WRAP
+import com.pockettheater.ui.components.actionButton
+import com.pockettheater.ui.components.card
+import com.pockettheater.ui.components.dp
+import com.pockettheater.ui.components.iconBadge
+import com.pockettheater.ui.components.lp
+import com.pockettheater.ui.components.sectionLabel
+import com.pockettheater.ui.components.textView
+import com.pockettheater.ui.theme.Theme
+import com.pockettheater.util.DeviceStats
+import com.pockettheater.util.Format
+import com.pockettheater.util.NetworkUtil
+
+/** Opens and closes the theater, shows the website link, and shows how the server is doing. */
+class DashboardScreen(private val activity: Activity) : Screen {
+    private val users = UserStore(activity)
+    private val device = DeviceStats(activity)
+    private var link: String? = null
+
+    private val statusDot = View(activity)
+    private val statusText = activity.textView("", 13f, Theme.Muted, bold = true).apply { letterSpacing = 0.12f }
+    private val linkView = activity.textView("", 20f, Theme.Marquee, bold = true).apply { setTextIsSelectable(true) }
+    private val errorView = activity.textView("", 14f, Theme.Red)
+    private val toggle = activity.actionButton("Open theater", filled = true) {
+        val intent = Intent(activity, ServerService::class.java)
+        if (ServerService.isRunning) activity.stopService(intent) else activity.startForegroundService(intent)
+    }
+
+    private val wakeBig = bigNumber()
+    private val wakeSub = subText()
+    private val usersBig = bigNumber()
+    private val usersSub = subText()
+    private val dataBig = bigNumber()
+    private val dataSub = subText()
+    private val requestsBig = bigNumber()
+    private val requestsSub = subText()
+
+    private val cpuGauge = RingGauge(activity)
+    private val cpuSub = subText(center = true)
+    private val ramGauge = RingGauge(activity)
+    private val ramSub = subText(center = true)
+    private val batteryGauge = RingGauge(activity)
+    private val batterySub = subText(center = true)
+
+    private val chart = BarChart(activity)
+    private val peakText = activity.textView("", 13f, Theme.Muted)
+
+    override val view: View = build()
+
+    private fun bigNumber(): TextView = activity.textView("-", 28f, Theme.Ink, bold = true)
+    private fun subText(center: Boolean = false): TextView =
+        activity.textView("", 13f, Theme.Muted).apply { if (center) gravity = Gravity.CENTER }
+
+    private fun build(): View {
+        val column = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(activity.dp(20), activity.dp(20), activity.dp(20), activity.dp(24))
+        }
+
+        // Title and status
+        val header = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        header.addView(activity.textView("Dashboard", 30f, Theme.Ink, bold = true), activity.lp(0, WRAP, 1f))
+        statusDot.background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Theme.Muted) }
+        header.addView(statusDot, activity.lp(activity.dp(10), activity.dp(10), right = 8))
+        header.addView(statusText)
+        column.addView(header)
+
+        // Website link and the open/close button
+        val hero = activity.card(18)
+        hero.addView(activity.textView("Website link (open it on your laptop, same Wi-Fi)", 13f, Theme.Muted))
+        hero.addView(linkView, activity.lp(MATCH, WRAP, top = 4))
+        hero.addView(errorView)
+        val buttons = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL }
+        buttons.addView(
+            activity.actionButton("Copy link", filled = false) { link?.let { copy(it) } },
+            activity.lp(0, WRAP, 1f, right = 6)
+        )
+        buttons.addView(toggle, activity.lp(0, WRAP, 1f, left = 6))
+        hero.addView(buttons, activity.lp(MATCH, WRAP, top = 14))
+        column.addView(hero, activity.lp(MATCH, WRAP, top = 18))
+
+        // Four numbers
+        column.addView(
+            pair(
+                statCard("\u23F1\uFE0F", Theme.Cyan, "WAKE TIME", wakeBig, wakeSub),
+                statCard("\uD83D\uDC65", Theme.Pink, "USERS", usersBig, usersSub)
+            ),
+            activity.lp(MATCH, WRAP, top = 14)
+        )
+        column.addView(
+            pair(
+                statCard("\uD83D\uDCE1", Theme.Neon, "DATA SENT", dataBig, dataSub),
+                statCard("\uD83C\uDF10", Theme.Marquee, "REQUESTS", requestsBig, requestsSub)
+            ),
+            activity.lp(MATCH, WRAP, top = 12)
+        )
+
+        // Server usage
+        column.addView(activity.sectionLabel("Server usage"), activity.lp(WRAP, WRAP, top = 26, bottom = 10))
+        val gauges = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL }
+        gauges.addView(gaugeCard(cpuGauge, "CPU", cpuSub), activity.lp(0, WRAP, 1f, right = 5))
+        gauges.addView(gaugeCard(ramGauge, "RAM", ramSub), activity.lp(0, WRAP, 1f, left = 5, right = 5))
+        gauges.addView(gaugeCard(batteryGauge, "BATTERY", batterySub), activity.lp(0, WRAP, 1f, left = 5))
+        column.addView(gauges)
+
+        // Site traffic
+        column.addView(activity.sectionLabel("Site traffic"), activity.lp(WRAP, WRAP, top = 26, bottom = 10))
+        val traffic = activity.card(16)
+        traffic.addView(activity.textView("Data sent per hour", 15f, Theme.Ink, bold = true))
+        traffic.addView(peakText)
+        traffic.addView(chart, activity.lp(MATCH, activity.dp(110), top = 14))
+        val axis = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL }
+        axis.addView(activity.textView("12h ago", 12f, Theme.Muted), activity.lp(0, WRAP, 1f))
+        axis.addView(activity.textView("now", 12f, Theme.Marquee, bold = true))
+        traffic.addView(axis, activity.lp(MATCH, WRAP, top = 6))
+        column.addView(traffic)
+
+        return ScrollView(activity).apply { addView(column) }
+    }
+
+    private fun statCard(icon: String, tint: Int, caption: String, big: TextView, sub: TextView): View {
+        val c = activity.card(16)
+        c.addView(activity.iconBadge(icon, tint))
+        c.addView(big, activity.lp(WRAP, WRAP, top = 12))
+        c.addView(activity.textView(caption, 12f, Theme.Muted, bold = true).apply { letterSpacing = 0.12f })
+        c.addView(sub, activity.lp(WRAP, WRAP, top = 2))
+        return c
+    }
+
+    private fun pair(a: View, b: View): LinearLayout = LinearLayout(activity).apply {
+        orientation = LinearLayout.HORIZONTAL
+        addView(a, activity.lp(0, MATCH, 1f, right = 6))
+        addView(b, activity.lp(0, MATCH, 1f, left = 6))
+    }
+
+    private fun gaugeCard(gauge: RingGauge, name: String, sub: TextView): View {
+        val c = activity.card(12)
+        c.gravity = Gravity.CENTER_HORIZONTAL
+        c.addView(gauge, activity.lp(MATCH, WRAP))
+        c.addView(activity.textView(name, 13f, Theme.Ink, bold = true).apply { letterSpacing = 0.1f }, activity.lp(WRAP, WRAP, top = 8))
+        c.addView(sub, activity.lp(MATCH, WRAP))
+        return c
+    }
+
+    private fun copy(text: String) {
+        activity.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Pocket Theater link", text))
+        Toast.makeText(activity, "Link copied", Toast.LENGTH_SHORT).show()
+    }
+
+    override fun refresh() {
+        val open = ServerService.isRunning
+        val error = ServerService.lastError
+
+        statusText.text = if (open) "OPEN" else "CLOSED"
+        statusText.setTextColor(if (open) Theme.Neon else Theme.Muted)
+        (statusDot.background as GradientDrawable).setColor(if (open) Theme.Neon else Theme.Muted)
+
+        val ip = NetworkUtil.localIpv4()
+        val address = if (open && ip != null) "http://$ip:${ServerService.PORT}" else null
+        link = address
+        linkView.text = when {
+            !open -> "Open the theater to get your link"
+            address == null -> "No Wi-Fi found. Connect to Wi-Fi or turn on the hotspot."
+            else -> address
+        }
+        errorView.text = if (!open && error != null) "Could not open: $error" else ""
+        errorView.visibility = if (errorView.text.isEmpty()) View.GONE else View.VISIBLE
+        toggle.text = if (open) "Close theater" else "Open theater"
+
+        val stats = ServerStats.snapshot(activity)
+        wakeBig.text = if (open) Format.duration(stats.awakeMs) else "Asleep"
+        wakeSub.text = "Total awake " + Format.duration(stats.lifetimeAwakeMs)
+        val members = users.members().size
+        usersBig.text = members.toString()
+        usersSub.text = "${stats.online} online \u00B7 ${users.pending().size} waiting"
+        dataBig.text = Format.bytes(stats.lifetimeBytes)
+        dataSub.text = "This session " + Format.bytes(stats.sessionBytes)
+        requestsBig.text = Format.count(stats.lifetimeRequests)
+        requestsSub.text = "This session " + Format.count(stats.sessionRequests)
+
+        val reading = device.read()
+        cpuGauge.set(reading.cpuPercent, "${reading.cpuPercent.toInt()}%", Theme.Cyan)
+        cpuSub.text = "This app only"
+        ramGauge.set(reading.ramPercent, "${reading.ramPercent.toInt()}%", if (reading.ramPercent > 90f) Theme.Red else Theme.Neon)
+        ramSub.text = "App uses ${reading.appRamMb} MB"
+        val low = reading.batteryPercent <= 20
+        batteryGauge.set(
+            reading.batteryPercent.toFloat(), "${reading.batteryPercent}%",
+            if (low && !reading.charging) Theme.Red else if (reading.batteryPercent <= 40 && !reading.charging) Theme.Marquee else Theme.Neon
+        )
+        batterySub.text = (if (reading.charging) "Charging" else "On battery") + " \u00B7 " + reading.tempC.toInt() + "\u00B0C"
+
+        chart.values = stats.bytesPerHour
+        var peak = 0L
+        for (v in stats.bytesPerHour) if (v > peak) peak = v
+        peakText.text = if (peak > 0L) "Busiest hour: " + Format.bytes(peak) else "No traffic yet since the app started"
+    }
+}

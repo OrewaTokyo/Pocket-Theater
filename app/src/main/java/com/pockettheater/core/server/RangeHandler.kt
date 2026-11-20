@@ -19,7 +19,7 @@ object RangeHandler {
         val stream = ParcelFileDescriptor.AutoCloseInputStream(pfd)
 
         if (total < 0) {
-            return newChunkedResponse(Status.OK, mime, stream)
+            return newChunkedResponse(Status.OK, mime, CountingInputStream(stream))
         }
 
         var start = 0L
@@ -60,7 +60,7 @@ object RangeHandler {
         }
 
         val length = if (total == 0L) 0L else end - start + 1
-        val body = BoundedStream(stream, length)
+        val body = CountingInputStream(BoundedStream(stream, length))
         val response = newFixedLengthResponse(
             if (partial) Status.PARTIAL_CONTENT else Status.OK, mime, body, length
         )

@@ -7,6 +7,8 @@ object Theme {
     val Cyan = 0xFF5EE0FF.toInt()
     val Ink = 0xFFF3EEF8.toInt()
     val Muted = 0xFFA39BC4.toInt()
+    val Border = 0xFF3A3170.toInt()
+    val Red = 0xFFFF5C7A.toInt()
     val Pink = 0xFFFF7BB5.toInt()
     val Neon = 0xFF5CFF9D.toInt()
     val SplashGlow = 0xFF2B1B52.toInt()

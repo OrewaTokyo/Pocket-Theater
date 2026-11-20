@@ -16,9 +16,12 @@ enum class Http(private val code: Int, private val text: String) : Response.ISta
     override fun getDescription(): String = "$code $text"
 }
 
-fun jsonResponse(status: Response.IStatus, body: JSONObject): Response =
-    newFixedLengthResponse(status, "application/json; charset=utf-8", body.toString())
+fun jsonResponse(status: Response.IStatus, body: JSONObject): Response {
+    val text = body.toString()
+    ServerStats.bytes(text.toByteArray().size.toLong())
+    return newFixedLengthResponse(status, "application/json; charset=utf-8", text)
         .also { it.addHeader("Cache-Control", "no-store") }
+}
 
 fun jsonError(status: Response.IStatus, message: String): Response =
     jsonResponse(status, JSONObject().put("error", message))

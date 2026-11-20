@@ -72,6 +72,9 @@ class UserStore(context: Context) {
         else it.copy(status = if (off) AccountStatus.OFF else AccountStatus.ACTIVE, version = it.version + 1)
     }
 
+    /** Signs everyone out at once. They can sign in again with their passwords. */
+    fun signOutAll() = synchronized(LOCK) { write(read().map { it.copy(version = it.version + 1) }) }
+
     fun delete(name: String) = synchronized(LOCK) { write(read().filter { it.name != name }) }
 
     fun setPassword(name: String, password: String) {
