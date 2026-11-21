@@ -10,7 +10,9 @@ import android.content.pm.ServiceInfo
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.IBinder
+import com.pockettheater.core.security.TlsIdentity
 import com.pockettheater.core.server.PocketServer
+import com.pockettheater.core.server.RedirectServer
 import com.pockettheater.core.server.ServerStats
 import com.pockettheater.core.storage.AppSettings
 import com.pockettheater.core.storage.UserStore
@@ -20,6 +22,7 @@ import fi.iki.elonen.NanoHTTPD
 
 class ServerService : Service() {
     private var server: PocketServer? = null
+    private var redirectServer: RedirectServer? = null
     private lateinit var locks: WifiLockManager
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -57,13 +60,31 @@ class ServerService : Service() {
     private fun startServer() {
         if (server != null) return
         try {
-            val s = PocketServer(applicationContext, PORT) { name -> announceRequest(name) }
-            s.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
-            server = s
+            var main: PocketServer? = null
+            var warning: String? = null
+            if (AppSettings(this).useHttps) {
+                try {
+                    main = startSecure()
+                } catch (e: Exception) {
+                    warning = "HTTPS could not start (${e.message ?: "unknown reason"}), so the theater is running without encryption."
+                }
+            }
+            if (main == null) {
+                main = PocketServer(applicationContext, PORT, false) { name -> announceRequest(name) }
+                main.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
+            }
+            server = main
+            isSecure = AppSettings(this).useHttps && warning == null
+            lastWarning = warning
             locks.acquire()
             lastError = null
             isRunning = true
             ServerStats.begin(applicationContext)
+            try {
+                showNotification() // now the real link is known
+            } catch (e: Exception) {
+                // The first notification is still showing.
+            }
         } catch (e: Exception) {
             lastError = e.message ?: "Could not start the server"
             isRunning = false
@@ -71,12 +92,35 @@ class ServerService : Service() {
         }
     }
 
+    /** Starts the encrypted website, checks that a secure handshake really works, and redirects the old plain port to it. */
+    private fun startSecure(): PocketServer {
+        val s = PocketServer(applicationContext, HTTPS_PORT, true) { name -> announceRequest(name) }
+        s.makeSecure(TlsIdentity.socketFactory(), arrayOf("TLSv1.3", "TLSv1.2"))
+        s.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
+        if (!TlsIdentity.handshakeWorks(HTTPS_PORT)) {
+            s.stop()
+            throw IllegalStateException("the secure handshake test failed")
+        }
+        try {
+            val redirect = RedirectServer(PORT, HTTPS_PORT)
+            redirect.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
+            redirectServer = redirect
+        } catch (e: Exception) {
+            // The old port is busy. The secure link still works.
+        }
+        return s
+    }
+
     private fun stopServer() {
         if (server != null) ServerStats.end()
         server?.stop()
         server = null
+        redirectServer?.stop()
+        redirectServer = null
         locks.release()
         isRunning = false
+        isSecure = false
+        lastWarning = null
     }
 
     /** Tells the admin, even with the screen off, that someone is waiting to be approved. */
@@ -115,7 +159,13 @@ class ServerService : Service() {
         val ip = NetworkUtil.localIpv4()
         val notification = Notification.Builder(this, CHANNEL_ID)
             .setContentTitle("Pocket Theater is open")
-            .setContentText(if (ip != null) "http://$ip:$PORT" else "Waiting for Wi-Fi")
+            .setContentText(
+                when {
+                    !isRunning -> "Starting\u2026"
+                    ip != null -> url(ip)
+                    else -> "Waiting for Wi-Fi"
+                }
+            )
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(open)
             .setOngoing(true)
@@ -135,13 +185,19 @@ class ServerService : Service() {
 
     companion object {
         const val PORT = 8080
+        const val HTTPS_PORT = 8443
         const val ACTION_STOP = "com.pockettheater.STOP"
         private const val CHANNEL_ID = "server_status"
         private const val REQUEST_CHANNEL_ID = "signup_requests"
         const val NOTIF_REQUEST = 2
         private const val NOTIF_ID = 1
 
+        /** The address people type, using HTTPS when it is running. */
+        fun url(ip: String): String = if (isSecure) "https://$ip:$HTTPS_PORT" else "http://$ip:$PORT"
+
         @Volatile var isRunning = false
+        @Volatile var isSecure = false
+        @Volatile var lastWarning: String? = null
         @Volatile var lastError: String? = null
     }
 }

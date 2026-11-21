@@ -31,4 +31,9 @@ class AppSettings(context: Context) {
     var autoRestart: Boolean
         get() = prefs.getBoolean("auto_restart", true)
         set(value) { prefs.edit().putBoolean("auto_restart", value).apply() }
+
+    /** When on, the website uses HTTPS with a certificate the phone makes for itself. */
+    var useHttps: Boolean
+        get() = prefs.getBoolean("use_https", true)
+        set(value) { prefs.edit().putBoolean("use_https", value).apply() }
 }

@@ -29,6 +29,7 @@ import org.json.JSONObject
 class PocketServer(
     context: Context,
     port: Int,
+    private val secure: Boolean,
     private val onSignupRequest: (String) -> Unit,
 ) : NanoHTTPD(port) {
     private val appContext = context.applicationContext
@@ -184,7 +185,7 @@ class PocketServer(
             ?.firstOrNull { it.startsWith("$name=") }?.substringAfter('=')
 
     private fun sessionCookie(token: String, seconds: Long): String =
-        "${Auth.COOKIE}=$token; Path=/; Max-Age=$seconds; HttpOnly; SameSite=Strict"
+        "${Auth.COOKIE}=$token; Path=/; Max-Age=$seconds; HttpOnly; SameSite=Strict" + if (secure) "; Secure" else ""
 
     private fun clientIp(session: IHTTPSession): String = session.headers["remote-addr"] ?: "unknown"
 

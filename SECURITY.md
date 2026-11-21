@@ -15,6 +15,7 @@ If you do not see that button, open a public issue that only asks for a private 
 
 ## What is protected
 
+- **Encryption.** The website uses HTTPS (TLS 1.2 or 1.3) with a certificate the phone makes for itself. Its private key lives in Android's key store and cannot be read out. The old plain port (8080) only sends visitors to the secure one (8443). After the theater starts, the app opens a test connection to itself, and if the secure handshake does not work it falls back to plain HTTP and shows a warning on the Dashboard. Session cookies are marked Secure while HTTPS is on.
 - **Accounts.** Nobody gets in until the admin approves them on the phone. Approving, turning off, deleting and password resets can only be done on the phone, never over the network.
 - **Passwords.** Stored only as a salted PBKDF2-SHA256 hash (120,000 rounds). Sign-in sessions are random cookies (HttpOnly, SameSite=Strict) that last up to 14 days and end when the theater closes. Resetting a password, turning an account off, deleting it, or "Sign everyone out" ends the affected sessions at once.
 - **Guessing.** After 8 wrong sign-in tries from one device, it must wait 10 minutes. Sign-up requests are limited per device, and at most 20 can be waiting.
@@ -26,7 +27,8 @@ More detail is in [docs/security/threat-model.md](docs/security/threat-model.md)
 
 ## Known limits
 
-- **No HTTPS yet.** Traffic is plain HTTP. Someone on the same Wi-Fi or hotspot could read it, including a password as it is typed. Use a network you trust. HTTPS is planned.
+- **The certificate is self-signed.** Browsers warn the first time, and again whenever the phone's address changes, because the phone cannot get a certificate from a public authority for a private address. The warning is only useful if you compare the fingerprint shown in the browser with the one in Profile > Settings > Connection (or in the QR code window), and continue only when they match. If you click through without checking, someone on your network could pretend to be the phone.
+- **Plain HTTP is still possible.** If you turn HTTPS off, or it cannot start, the theater runs without encryption and the sign-in page says so. Do not reuse a password from anywhere else.
 - **The PIN is a door lock, not encryption.** It stops someone who picks up your phone. It does not protect against someone who copies the phone's storage.
 - **The admin is whoever holds the unlocked phone.** Keep the PIN on and the phone locked.
 - **Approved people see every shared folder.** There are no per-person permissions yet.
@@ -35,7 +37,8 @@ More detail is in [docs/security/threat-model.md](docs/security/threat-model.md)
 ## Staying safe
 
 - Give your hotspot a strong WPA2 or WPA3 password.
-- Never forward port 8080 on your router to the internet. The theater is meant for your own network only.
+- Compare the certificate fingerprint the first time you connect from a new device.
+- Never forward ports 8080 or 8443 on your router to the internet. The theater is meant for your own network only.
 - Approve only people you know, and turn off new sign-ups in Settings when you do not need them.
 - Share only the folders people need.
 - Turn on the PIN lock.
@@ -45,7 +48,8 @@ More detail is in [docs/security/threat-model.md](docs/security/threat-model.md)
 - APKs are built by GitHub Actions from this repository and published as releases. Only install APKs from your own repository's Releases.
 - Every build is signed with one permanent key, so updates install over each other. The key is kept in the repository's secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`) and must never be committed.
 - Before a build is published, a check confirms the APK's package name, version, permissions and that it is signed with that exact key.
-- If the key ever leaks, make a new one. After that, each phone has to uninstall the app once.
+- If you think the phone's HTTPS certificate was copied, use Make a new certificate in Settings.
+- If the app signing key ever leaks, make a new one. After that, each phone has to uninstall the app once.
 
 ## Out of scope
 

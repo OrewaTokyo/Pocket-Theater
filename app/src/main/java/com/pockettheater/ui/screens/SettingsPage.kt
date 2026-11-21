@@ -2,6 +2,8 @@ package com.pockettheater.ui.screens
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.graphics.drawable.GradientDrawable
 import android.text.Editable
 import android.text.TextWatcher
@@ -17,6 +19,7 @@ import android.widget.TextView
 import android.widget.Toast
 import com.pockettheater.R
 import com.pockettheater.core.security.PinLock
+import com.pockettheater.core.security.TlsIdentity
 import com.pockettheater.core.server.ServerStats
 import com.pockettheater.core.storage.AppSettings
 import com.pockettheater.core.storage.UserStore
@@ -79,6 +82,9 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
         Entry("Allow new sign-up requests", "register registration join access people close open", "signups"),
         Entry("Sign everyone out", "log out sessions password", "signups"),
         Entry("Notify me about requests", "alerts notification sign-up", "notifications"),
+        Entry("Use HTTPS", "https tls ssl secure encrypt encryption certificate warning padlock", "connection"),
+        Entry("Certificate fingerprint", "https tls certificate sha fingerprint verify browser warning", "connection"),
+        Entry("Make a new certificate", "https certificate renew regenerate new", "connection"),
         Entry("Run without battery limits", "battery optimisation optimization restricted background closed kill awake", "connection"),
         Entry("Restart automatically", "restart kill closed sticky reopen", "connection"),
         Entry("Hotspot and Wi-Fi tips", "hotspot wifi band 2.4 5 ghz timer charging autostart connection drops", "connection"),
@@ -273,6 +279,30 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
     private fun buildConnection(column: LinearLayout) {
         val unrestricted = BatteryHelper.isUnrestricted(activity)
         shownBatteryOk = unrestricted
+        val fingerprint = try { TlsIdentity.fingerprint() } catch (e: Exception) { null }
+        column.addView(activity.sectionLabel("Secure connection"), activity.lp(WRAP, WRAP, top = 22, bottom = 10))
+        column.addView(
+            rowsCard(
+                listOf(
+                    row(
+                        "Use HTTPS",
+                        "Encrypts everything between your devices and the phone. The browser warns once, because the phone makes its own certificate. Applies the next time you open the theater.",
+                        switchView(settings.useHttps) { settings.useHttps = it }
+                    ),
+                    row(
+                        "Certificate fingerprint",
+                        if (fingerprint != null) "Compare it with the one your browser shows before you continue.\n$fingerprint"
+                        else "The certificate could not be read on this phone.",
+                        if (fingerprint != null) activity.pillButton("Copy", Theme.Ink) { copyText("Fingerprint", fingerprint) } else null
+                    ),
+                    row(
+                        "Make a new certificate",
+                        "Use this if you think someone copied the old one. Browsers will warn again.",
+                        activity.pillButton("Renew", Theme.Red) { confirmRenewCertificate() }
+                    )
+                )
+            )
+        )
         column.addView(activity.sectionLabel("Staying awake"), activity.lp(WRAP, WRAP, top = 22, bottom = 10))
         column.addView(
             rowsCard(
@@ -328,7 +358,11 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
             rowsCard(
                 listOf(
                     row("Version", "This build of the app.", valueText(versionName(), Theme.Muted)),
-                    row("Website port", "The link on the Dashboard ends with this number.", valueText(ServerService.PORT.toString(), Theme.Muted))
+                    row(
+                        "Website port",
+                        "The link on the Dashboard ends with this number." + if (settings.useHttps) " The old port ${ServerService.PORT} sends visitors here." else "",
+                        valueText((if (settings.useHttps) ServerService.HTTPS_PORT else ServerService.PORT).toString(), Theme.Muted)
+                    )
                 )
             )
         )
@@ -415,6 +449,28 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
         300 -> "After 5 minutes"
         900 -> "After 15 minutes"
         else -> "After ${settings.lockAfterSeconds} seconds"
+    }
+
+    private fun copyText(label: String, text: String) {
+        activity.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText(label, text))
+        Toast.makeText(activity, "Copied", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun confirmRenewCertificate() {
+        AlertDialog.Builder(activity)
+            .setTitle("Make a new certificate?")
+            .setMessage("Browsers will warn again the next time they connect, and you will compare the new fingerprint. Close and open the theater to start using it.")
+            .setPositiveButton("Make new") { _, _ ->
+                try {
+                    TlsIdentity.renew()
+                    Toast.makeText(activity, "New certificate made", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(activity, "Could not make a new certificate", Toast.LENGTH_LONG).show()
+                }
+                showCategory("connection")
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun confirmSignOutAll() {

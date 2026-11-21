@@ -69,5 +69,13 @@
     busy(forms.register, false);
   });
 
+  // Over plain HTTP (HTTPS turned off or unavailable) a password crosses the network unprotected.
+  if (location.protocol === "http:") {
+    const note = document.createElement("p");
+    note.className = "auth-warn";
+    note.textContent = "This connection is not encrypted. Do not use a password you use anywhere else.";
+    document.querySelector(".auth").insertBefore(note, document.querySelector(".auth-foot"));
+  }
+
   if (location.hash === "#register") show("register");
 })();

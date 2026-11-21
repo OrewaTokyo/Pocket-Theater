@@ -1,21 +1,25 @@
 package com.pockettheater.ui.screens
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import com.pockettheater.core.security.TlsIdentity
 import com.pockettheater.core.server.ServerStats
 import com.pockettheater.core.storage.UserStore
 import com.pockettheater.service.ServerService
 import com.pockettheater.ui.components.BarChart
 import com.pockettheater.ui.components.MATCH
+import com.pockettheater.ui.components.QrCode
 import com.pockettheater.ui.components.RingGauge
 import com.pockettheater.ui.components.WRAP
 import com.pockettheater.ui.components.actionButton
@@ -41,6 +45,7 @@ class DashboardScreen(private val activity: Activity) : Screen {
     private val statusText = activity.textView("", 13f, Theme.Muted, bold = true).apply { letterSpacing = 0.12f }
     private val linkView = activity.textView("", 20f, Theme.Marquee, bold = true).apply { setTextIsSelectable(true) }
     private val errorView = activity.textView("", 14f, Theme.Red)
+    private val warningView = activity.textView("", 14f, Theme.Marquee)
     private val linkHint = activity.textView("Website link", 13f, Theme.Muted)
     private val otherAddresses = activity.textView("", 13f, Theme.Muted).apply { setTextIsSelectable(true) }
     private val batteryTip = activity.card(16)
@@ -94,13 +99,18 @@ class DashboardScreen(private val activity: Activity) : Screen {
         hero.addView(linkView, activity.lp(MATCH, WRAP, top = 4))
         hero.addView(otherAddresses, activity.lp(MATCH, WRAP, top = 4))
         hero.addView(errorView)
+        hero.addView(warningView, activity.lp(MATCH, WRAP, top = 6))
         val buttons = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL }
         buttons.addView(
             activity.actionButton("Copy link", filled = false) { link?.let { copy(it) } },
             activity.lp(0, WRAP, 1f, right = 6)
         )
-        buttons.addView(toggle, activity.lp(0, WRAP, 1f, left = 6))
+        buttons.addView(
+            activity.actionButton("QR code", filled = false) { showQr() },
+            activity.lp(0, WRAP, 1f, left = 6)
+        )
         hero.addView(buttons, activity.lp(MATCH, WRAP, top = 14))
+        hero.addView(toggle, activity.lp(MATCH, WRAP, top = 10))
         column.addView(hero, activity.lp(MATCH, WRAP, top = 18))
 
         // Shown only while the theater is open and Android may still close it to save battery
@@ -179,6 +189,40 @@ class DashboardScreen(private val activity: Activity) : Screen {
         return c
     }
 
+    /** A QR code for the link, so a tablet or second phone can open the website by scanning it. */
+    private fun showQr() {
+        val address = link
+        if (address == null) {
+            Toast.makeText(activity, "Open the theater first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val picture = QrCode.bitmap(address, activity.dp(280))
+        val body = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(activity.dp(20), activity.dp(8), activity.dp(20), activity.dp(8))
+        }
+        body.addView(ImageView(activity).apply { setImageBitmap(picture) }, activity.lp(picture.width, picture.height))
+        body.addView(
+            activity.textView(address, 16f, Theme.Marquee, bold = true).apply { gravity = Gravity.CENTER; setTextIsSelectable(true) },
+            activity.lp(MATCH, WRAP, top = 12)
+        )
+        val note = if (ServerService.isSecure) {
+            val fingerprint = try { TlsIdentity.fingerprint() } catch (e: Exception) { "" }
+            "Scan it with a phone or tablet on the same Wi-Fi or hotspot. The first time, the browser warns about the certificate, because this phone made it. " +
+                "Check that the fingerprint it shows matches this one, then continue.\n\n" + fingerprint
+        } else {
+            "Scan it with a phone or tablet on the same Wi-Fi or hotspot. This link is not encrypted."
+        }
+        body.addView(
+            activity.textView(note, 13f, Theme.Muted).apply { gravity = Gravity.CENTER; setTextIsSelectable(true) },
+            activity.lp(MATCH, WRAP, top = 10)
+        )
+        val dialog = AlertDialog.Builder(activity).setTitle("Scan to open").setView(ScrollView(activity).apply { addView(body) })
+            .setPositiveButton("Done", null).create()
+        dialog.show()
+    }
+
     private fun copy(text: String) {
         activity.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Pocket Theater link", text))
         Toast.makeText(activity, "Link copied", Toast.LENGTH_SHORT).show()
@@ -194,12 +238,12 @@ class DashboardScreen(private val activity: Activity) : Screen {
 
         val addresses = NetworkUtil.addresses()
         val best = addresses.firstOrNull()
-        val address = if (open && best != null) "http://${best.ip}:${ServerService.PORT}" else null
+        val address = if (open && best != null) ServerService.url(best.ip) else null
         link = address
         linkHint.text = when {
             !open || best == null -> "Website link"
-            best.kind == "Hotspot" -> "Website link (phone hotspot): open it on a device joined to this hotspot"
-            else -> "Website link (${best.kind}): open it on a device on the same network"
+            else -> (if (ServerService.isSecure) "Secure link (HTTPS)" else "Link (not encrypted)") +
+                " \u00B7 " + (if (best.kind == "Hotspot") "open it on a device joined to this hotspot" else "open it on a device on the same ${best.kind}")
         }
         linkView.text = when {
             !open -> "Open the theater to get your link"
@@ -208,9 +252,11 @@ class DashboardScreen(private val activity: Activity) : Screen {
         }
         val others = if (open) addresses.drop(1) else emptyList()
         otherAddresses.text = if (others.isEmpty()) "" else
-            "Also reachable at: " + others.joinToString("   ") { "http://${it.ip}:${ServerService.PORT} (${it.kind})" }
+            "Also reachable at: " + others.joinToString("   ") { ServerService.url(it.ip) + " (${it.kind})" }
         otherAddresses.visibility = if (others.isEmpty()) View.GONE else View.VISIBLE
         batteryTip.visibility = if (open && !BatteryHelper.isUnrestricted(activity)) View.VISIBLE else View.GONE
+        warningView.text = if (open) ServerService.lastWarning.orEmpty() else ""
+        warningView.visibility = if (warningView.text.isEmpty()) View.GONE else View.VISIBLE
         errorView.text = if (!open && error != null) "Could not open: $error" else ""
         errorView.visibility = if (errorView.text.isEmpty()) View.GONE else View.VISIBLE
         toggle.text = if (open) "Close theater" else "Open theater"
