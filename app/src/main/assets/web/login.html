@@ -42,6 +42,7 @@
         <label for="rg-pass2">Repeat password</label>
         <input id="rg-pass2" type="password" autocomplete="new-password" required>
         <label class="check"><input type="checkbox" class="show-pass" data-for="rg-pass rg-pass2"> Show passwords</label>
+        <label class="check agree"><input type="checkbox" id="rg-agree"> <span>I agree to the <a href="/legal.html#terms" target="_blank" rel="noopener">Terms of Use</a> and the <a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
         <p class="form-msg" id="rg-msg" role="alert"></p>
         <button class="go" type="submit">Send request</button>
       </form>
@@ -52,7 +53,8 @@
         <button class="go" type="button" id="to-signin">Go to sign in</button>
       </div>
     </section>
-    <p class="auth-foot">Only works on the same Wi-Fi as the phone. Passwords are stored scrambled on the phone.</p>
+    <p class="auth-foot">Only works on the same Wi-Fi as the phone. Passwords are stored scrambled on the phone.<br>
+      <a href="/legal.html#terms">Terms of Use</a> · <a href="/legal.html#privacy">Privacy Policy</a> · <a href="/legal.html#security">Security Policy</a></p>
   </main>
 
   <script src="/scripts/api.js"></script>

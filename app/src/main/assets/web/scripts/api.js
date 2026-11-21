@@ -78,7 +78,7 @@ PT.util = {
   enc(part) { return encodeURIComponent(part); },
   // How long to wait before asking the phone "are you there?" again.
   pollDelay(online, failures) {
-    if (online) return failures > 0 ? 1500 : 5000;
+    if (online) return failures > 0 ? 1500 : 3000;
     return Math.min(1500 + failures * 500, 6000);
   },
   // Same rules as the phone. A sentence when something is wrong, otherwise null.

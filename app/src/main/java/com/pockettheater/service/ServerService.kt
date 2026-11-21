@@ -10,6 +10,7 @@ import android.content.pm.ServiceInfo
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.IBinder
+import com.pockettheater.core.security.SessionStore
 import com.pockettheater.core.security.TlsIdentity
 import com.pockettheater.core.server.PocketServer
 import com.pockettheater.core.server.RedirectServer
@@ -115,6 +116,7 @@ class ServerService : Service() {
         if (server != null) ServerStats.end()
         server?.stop()
         server = null
+        SessionStore.shared.clear() // closing the theater signs everyone out
         redirectServer?.stop()
         redirectServer = null
         locks.release()

@@ -54,11 +54,12 @@
     const username = $("rg-user").value.trim().toLowerCase();
     const password = $("rg-pass").value;
     const problem = PT.util.usernameProblem(username) || PT.util.passwordProblem(password) ||
-      (password !== $("rg-pass2").value ? "The two passwords are not the same." : null);
+      (password !== $("rg-pass2").value ? "The two passwords are not the same." : null) ||
+      (!$("rg-agree").checked ? "Please accept the Terms of Use and the Privacy Policy." : null);
     if (problem) { msg.textContent = problem; return; }
     busy(forms.register, true);
     try {
-      await PT.api.post("/api/register", { username, password });
+      await PT.api.post("/api/register", { username, password, agree: true });
       forms.register.reset();
       Object.values(forms).forEach((f) => { f.hidden = true; });
       $("sent").hidden = false;

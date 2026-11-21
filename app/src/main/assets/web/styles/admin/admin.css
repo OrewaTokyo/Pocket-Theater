@@ -1,0 +1,28 @@
+/* QR window shown while the phone pairs this browser as admin. */
+.pair { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 16px; background: rgba(8, 6, 20, 0.86); }
+.pair[hidden] { display: none; }
+.pair-card { max-width: 380px; width: 100%; box-sizing: border-box; text-align: center; padding: 24px; border-radius: 18px; background: var(--surface); border: 1px solid var(--surface-hi); border-top: 5px solid var(--marquee); }
+.pair-card h2 { margin: 0 0 8px; font-family: var(--font-display); font-weight: 400; }
+.pair-card img { background: #fff; border-radius: 12px; padding: 6px; max-width: 100%; height: auto; }
+.pair-code { font-family: monospace; font-size: 1.6rem; letter-spacing: 0.12em; margin: 10px 0 4px; color: var(--marquee); }
+
+/* The admin page. */
+.admin-head { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: flex-start; }
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; margin: 16px 0; }
+.stat { padding: 14px 16px; border-radius: 14px; background: var(--surface); border: 1px solid var(--surface-hi); }
+.stat p { margin: 0; }
+.stat-label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.12em; }
+.stat-value { font-size: 1.6rem; font-weight: 800; margin: 4px 0; }
+.panel { margin: 18px 0; padding: 16px; border-radius: 14px; background: var(--surface); border: 1px solid var(--surface-hi); }
+.panel h2 { margin: 0 0 8px; font-size: 1.1rem; }
+.arow { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; align-items: center; padding: 10px 0; border-top: 1px solid var(--surface-hi); }
+.arow:first-of-type { border-top: 0; }
+.arow-text { display: flex; flex-direction: column; }
+.arow-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.go, .danger, .ghost.small, .go.small, .danger.small { padding: 8px 14px; border-radius: 10px; font: inherit; font-weight: 700; cursor: pointer; }
+.go.small { border: 0; background: var(--marquee); color: var(--midnight); }
+.danger.small { border: 1px solid #ff5c7a; background: transparent; color: #ff9ab0; }
+.notice { margin: 14px 0; padding: 12px 14px; border-radius: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.notice.ok { background: #11382a; border: 1px solid #5cff9d; }
+.notice.error { background: #4a1826; border: 1px solid #ff5c7a; }
+.notice code { font-size: 1.1rem; background: rgba(0, 0, 0, 0.35); padding: 2px 8px; border-radius: 6px; }

@@ -8,14 +8,15 @@ Last updated: 21 November 2026
 
 | What | Details |
 | --- | --- |
-| Accounts | Each person's username, whether they are approved or turned off, and when they asked to join. Passwords are never stored. Only a salted, scrambled form (PBKDF2-SHA256) is kept, and it cannot be turned back into the password. |
+| Accounts | Each person's username, whether they are approved or turned off, when they asked to join, and when they accepted the Terms of Use and Privacy Policy. Passwords are never stored. Only a salted, scrambled form (PBKDF2-SHA256) is kept, and it cannot be turned back into the password. |
+| Admin password | If you turn on the admin website, a scrambled form of the password you choose, and a counter of wrong tries. |
 | PIN lock | If you turn it on, a scrambled form of the PIN and a counter of wrong tries. |
 | Shared folders | The folder's name, the shelf you put it under (Series, Anime, Movies, Gaming and so on), and Android's permission link to the folder. The app does not copy your files. |
 | HTTPS certificate | A certificate and key the phone makes for itself. The private key stays in Android's key store. |
 | Settings | The switches and choices in Profile > Settings. |
 | Dashboard totals | Three running numbers: total data sent, total requests, and total time awake. They hold no file names, no usernames and no addresses. |
 
-These live only in memory and disappear when the theater closes or the app stops: who is signed in, who was active in the last 3 minutes, the hourly traffic chart, and the counters that slow down password guessing (which use a device's address on your network).
+These live only in memory and disappear when the theater closes or the app stops: who is signed in (with each browser's type, such as "Chrome on Windows", and its address on your network, which the Devices list shows you), who was active in the last 3 minutes, the hourly traffic chart, and the counters that slow down password guessing (which use a device's address on your network).
 
 ## What the app can see
 
@@ -42,6 +43,10 @@ Files and pages are sent to the devices of approved people over your own Wi-Fi o
 | Notifications | For the "theater is open" notice and sign-up request alerts. You can turn the alerts off in Settings. |
 | Ignore battery optimisation | Only to ask Android to leave the theater alone. Android shows its own question and you decide. |
 
+## The QR scanner
+
+If you use the admin website, the phone scans a QR code with Google's code scanner, which is part of Google Play services. It runs on the phone, and Google's own terms and privacy notice apply to that component. If you type the code instead, nothing from Google is involved.
+
 ## Cookies
 
 The website sets one cookie, `pt_session`. It keeps you signed in for up to 14 days, can't be read by page scripts (HttpOnly), is not sent from other sites (SameSite=Strict), and is only sent over HTTPS when HTTPS is on (Secure). There are no tracking or advertising cookies.
@@ -57,6 +62,7 @@ Android backup is turned off for this app, so accounts, the PIN and settings are
 - Stop sharing a folder: Profile > Admin tools > Shared folders > Remove.
 - Turn off the PIN lock: Profile > Settings > Privacy and data.
 - Make a new HTTPS certificate: Profile > Settings > Connection.
+- Turn off the admin website, change its password, or end an open admin session: Profile > Settings > Admin website.
 - Remove everything: clear the app's data in Android settings, or uninstall the app. This also removes the PIN, the accounts and the folder list.
 
 ## Changes

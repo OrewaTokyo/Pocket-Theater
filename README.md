@@ -12,6 +12,7 @@ PDFs and more. No internet, no accounts, no cloud.
 - 🎞️ Video streaming with seeking, plus an image and PDF viewer
 - 📊 Phone app with three tabs (Dashboard, Folders, Profile): Dashboard (open/close, link, wake time, users, data sent, requests, CPU, RAM, battery, traffic), Folders (placeholder for now) and Profile (Admin tools, Settings)
 - 🔐 Optional PIN lock for the phone app (Profile > Settings > Privacy and data), with a hide-in-recent-apps switch and searchable, categorised settings
+- 🖥️ Optional admin website: open admin tools in a browser by scanning a QR code with the phone and entering the admin password
 - 🔏 HTTPS with a certificate the phone makes itself, plus a QR code to open the link on another device
 - 🔒 Real accounts: people request access on the website, you approve them on the phone, and you can reset passwords there 
 - 📶 Works with just Wi-Fi or the phone's hotspot
@@ -40,5 +41,6 @@ Apache-2.0
 
 ## Privacy and security
 
+- [TERMS.md](TERMS.md): the rules for using Pocket Theater
 - [PRIVACY.md](PRIVACY.md): what the app stores, what it can see and what leaves the phone
 - [SECURITY.md](SECURITY.md): how to report a problem, what is protected and the known limits

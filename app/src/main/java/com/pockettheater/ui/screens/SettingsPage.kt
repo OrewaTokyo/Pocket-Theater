@@ -6,6 +6,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.graphics.drawable.GradientDrawable
 import android.text.Editable
+import android.text.InputType
 import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
@@ -17,7 +18,13 @@ import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.pockettheater.R
+import com.pockettheater.core.security.AdminPassword
+import com.pockettheater.core.security.Auth
+import com.pockettheater.core.security.SessionStore
 import com.pockettheater.core.security.PinLock
 import com.pockettheater.core.security.TlsIdentity
 import com.pockettheater.core.server.ServerStats
@@ -25,6 +32,7 @@ import com.pockettheater.core.storage.AppSettings
 import com.pockettheater.core.storage.UserStore
 import com.pockettheater.service.ServerService
 import com.pockettheater.ui.components.MATCH
+import com.pockettheater.ui.components.Markdown
 import com.pockettheater.ui.components.PinPad
 import com.pockettheater.ui.components.WRAP
 import com.pockettheater.ui.components.card
@@ -53,6 +61,9 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
 
     private val settings = AppSettings(activity)
     private val users = UserStore(activity)
+    private val adminPassword = AdminPassword(activity)
+    private val deviceBox = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
+    private var deviceSignature = ""
     private val holder = FrameLayout(activity)
     private var openId: String? = null
     private var shownBatteryOk: Boolean? = null
@@ -62,6 +73,8 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
             { if (pinLock.isSet()) "PIN on" else "PIN off" }, { c -> buildPrivacy(c) }),
         Category("signups", R.drawable.ic_group, Theme.Pink, "Sign-ups and accounts", "Who can ask to join",
             { if (settings.signupsOpen) "Open" else "Closed" }, { c -> buildSignups(c) }),
+        Category("admin", R.drawable.ic_build, Theme.Marquee, "Admin website", "Open admin tools on another device",
+            { if (settings.adminWebEnabled) "On" else "Off" }, { c -> buildAdmin(c) }),
         Category("notifications", R.drawable.ic_bell, Theme.Marquee, "Notifications", "Sign-up request alerts",
             { if (settings.notifyRequests) "On" else "Off" }, { c -> buildNotifications(c) }),
         Category("connection", R.drawable.ic_wifi, Theme.Cyan, "Connection", "Keep the theater running",
@@ -79,6 +92,9 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
         Entry("Turn off PIN lock", "lock remove disable", "privacy"),
         Entry("Hide the app in recent apps", "screenshot screenshots recents blank preview secure", "privacy"),
         Entry("Where your data lives", "privacy storage local phone online account", "privacy"),
+        Entry("Allow the admin website", "admin web browser laptop pair qr scan remote", "admin"),
+        Entry("Admin password", "admin password pair qr", "admin"),
+        Entry("Show QR on a device", "connect device qr scan pair admin list devices", "admin"),
         Entry("Allow new sign-up requests", "register registration join access people close open", "signups"),
         Entry("Sign everyone out", "log out sessions password", "signups"),
         Entry("Notify me about requests", "alerts notification sign-up", "notifications"),
@@ -89,6 +105,9 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
         Entry("Restart automatically", "restart kill closed sticky reopen", "connection"),
         Entry("Hotspot and Wi-Fi tips", "hotspot wifi band 2.4 5 ghz timer charging autostart connection drops", "connection"),
         Entry("Reset data counters", "totals traffic dashboard zero clear data sent requests", "data"),
+        Entry("Terms of use", "terms policy legal agreement rules", "about"),
+        Entry("Privacy policy", "privacy policy legal data", "about"),
+        Entry("Security policy", "security policy report vulnerability legal", "about"),
         Entry("Version", "about build app", "about"),
         Entry("Website port", "port address 8080 link", "about"),
     )
@@ -128,7 +147,7 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
         column.addView(search, activity.lp(MATCH, WRAP, top = 14))
 
         val groups = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
-        group(groups, "Security", listOf("privacy", "signups"))
+        group(groups, "Security", listOf("privacy", "signups", "admin"))
         group(groups, "Theater", listOf("notifications", "connection", "data"))
         group(groups, "About", listOf("about"))
         val results = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
@@ -201,6 +220,22 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
         show(ScrollView(activity).apply { addView(column) })
     }
 
+    /** Reads one of the bundled documents (the same text the website shows). */
+    private fun showLegal(title: String, file: String) {
+        openId = "legal"
+        val text = try {
+            activity.assets.open("web/legal/$file.md").bufferedReader().use { it.readText() }
+        } catch (e: Exception) {
+            "Could not open this document."
+        }
+        val column = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(activity.dp(20), activity.dp(4), activity.dp(20), activity.dp(32))
+        }
+        Markdown.views(activity, text).forEach { column.addView(it) }
+        show(ScrollView(activity).apply { addView(column) })
+    }
+
     private fun buildPrivacy(column: LinearLayout) {
         column.addView(activity.sectionLabel("Privacy screen"), activity.lp(WRAP, WRAP, top = 22, bottom = 10))
         val lockText = "Keeps the app closed to anyone who picks up your phone. It does not encrypt your folders."
@@ -235,6 +270,191 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
                 )
             )
         )
+    }
+
+    // ---- admin website ----
+
+    private fun toast(message: String) = Toast.makeText(activity, message, Toast.LENGTH_LONG).show()
+
+    private fun buildAdmin(column: LinearLayout) {
+        column.addView(activity.sectionLabel("Admin website"), activity.lp(WRAP, WRAP, top = 22, bottom = 10))
+        column.addView(
+            rowsCard(
+                listOf(
+                    row(
+                        "Allow the admin website",
+                        "Open admin tools in a browser on another device. You scan a QR code with this phone and enter the admin password. Needs HTTPS and the theater open. Off by default.",
+                        switchView(settings.adminWebEnabled) { on -> changeAdminWeb(on) }
+                    ),
+                    row(
+                        "Admin password",
+                        if (adminPassword.isSet()) "Asked on this phone every time you open the admin website on a device."
+                        else "Not set yet. You need one before you can allow the admin website.",
+                        activity.pillButton(if (adminPassword.isSet()) "Change" else "Set", Theme.Marquee) {
+                            if (adminPassword.isSet()) changeAdminPassword() else createAdminPassword()
+                        }
+                    )
+                )
+            )
+        )
+        column.addView(activity.sectionLabel("Devices on the website"), activity.lp(WRAP, WRAP, top = 22, bottom = 10))
+        column.addView(deviceBox)
+        rebuildDevices()
+    }
+
+    private fun devicesSignature(): String =
+        "${ServerService.isRunning}${ServerService.isSecure}${settings.adminWebEnabled}" +
+            SessionStore.shared.devices().joinToString(",") { it.id + it.admin }
+
+    private fun rebuildDevices() {
+        deviceSignature = devicesSignature()
+        deviceBox.removeAllViews()
+        val devices = SessionStore.shared.devices()
+        val rows = ArrayList<View>()
+        when {
+            !ServerService.isRunning -> rows += row("The theater is closed", "Open it on the Dashboard to see who is signed in.", null)
+            !ServerService.isSecure -> rows += row("HTTPS is off", "The admin website needs HTTPS. Turn it on under Connection, then close and open the theater.", null)
+            devices.isEmpty() -> rows += row("No one is signed in", "Devices appear here when they sign in on the website.", null)
+            else -> devices.forEach { d ->
+                val since = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(d.since))
+                rows += row(
+                    d.label, "${d.user} \u00B7 ${d.ip} \u00B7 signed in $since",
+                    if (d.admin) activity.pillButton("End admin", Theme.Red) {
+                        SessionStore.shared.revokeAdmin(d.id)
+                        rebuildDevices()
+                    } else activity.pillButton("Show QR", Theme.Marquee) { startPairing(d) }
+                )
+            }
+        }
+        deviceBox.addView(rowsCard(rows))
+    }
+
+    private fun changeAdminWeb(on: Boolean) {
+        when {
+            on && !adminPassword.isSet() -> toast("Set an admin password first.")
+            on && !settings.useHttps -> toast("Turn on HTTPS first, under Connection.")
+            else -> {
+                settings.adminWebEnabled = on
+                if (!on) SessionStore.shared.devices().filter { it.admin }.forEach { SessionStore.shared.revokeAdmin(it.id) }
+            }
+        }
+        showCategory("admin")
+    }
+
+    /** A box that asks for one line of text. */
+    private fun askText(title: String, message: String, secret: Boolean, onOk: (String) -> Unit) {
+        val input = EditText(activity).apply {
+            inputType = if (secret) InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            else InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+            setSingleLine(true)
+            setTextColor(Theme.Ink)
+        }
+        val frame = FrameLayout(activity).apply {
+            setPadding(activity.dp(20), activity.dp(8), activity.dp(20), 0)
+            addView(input)
+        }
+        AlertDialog.Builder(activity).setTitle(title).setMessage(message).setView(frame)
+            .setPositiveButton("OK") { _, _ -> onOk(input.text.toString()) }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun createAdminPassword() {
+        askText("Admin password", "Choose a password of 8 to 64 characters. You type it on this phone, never on the website.", true) { first ->
+            val problem = Auth.passwordProblem(first)
+            if (problem != null) {
+                toast(problem)
+            } else {
+                askText("Repeat the password", "Type it once more.", true) { again ->
+                    if (again == first) {
+                        adminPassword.set(first)
+                        toast("Admin password saved")
+                    } else {
+                        toast("The two passwords are not the same.")
+                    }
+                    showCategory("admin")
+                }
+            }
+        }
+    }
+
+    private fun changeAdminPassword() {
+        askText("Current admin password", "Enter the current password first.", true) { current ->
+            when (adminPassword.verify(current)) {
+                PinLock.Result.OK -> createAdminPassword()
+                PinLock.Result.WAIT -> toast("Too many tries. Wait ${adminPassword.secondsToWait()} seconds.")
+                PinLock.Result.WRONG -> toast("Wrong password. ${adminPassword.triesLeft()} tries left.")
+            }
+        }
+    }
+
+    /** Step 1: the admin picks a device. Its screen starts showing a QR code. */
+    private fun startPairing(device: SessionStore.Device) {
+        when {
+            !settings.adminWebEnabled -> toast("Turn on \"Allow the admin website\" first.")
+            !adminPassword.isSet() -> toast("Set an admin password first.")
+            !ServerService.isSecure -> toast("The admin website needs HTTPS.")
+            SessionStore.shared.beginPairing(device.id) == null -> toast("That device is no longer signed in.")
+            else -> pairingDialog(device)
+        }
+    }
+
+    /** Step 2: scan the QR code on that device, or type the code under it. */
+    private fun pairingDialog(device: SessionStore.Device) {
+        AlertDialog.Builder(activity)
+            .setTitle("QR code is on ${device.label} (${device.user})")
+            .setMessage("Look at that device's screen. Make sure it is your own device. Scan the QR code with this phone, or choose Type code and enter the code under it. It works for 2 minutes.")
+            .setPositiveButton("Scan QR") { _, _ -> scanQr(device) }
+            .setNeutralButton("Type code") { _, _ ->
+                askText("Type the code", "Enter the code shown under the QR code.", false) { checkCode(device, it) }
+            }
+            .setNegativeButton("Cancel") { _, _ -> SessionStore.shared.cancelPairing(device.id) }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun scanQr(device: SessionStore.Device) {
+        val options = GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()
+        GmsBarcodeScanning.getClient(activity, options).startScan()
+            .addOnSuccessListener { barcode ->
+                val raw = barcode.rawValue.orEmpty()
+                if (raw.startsWith("PT:")) {
+                    checkCode(device, raw.removePrefix("PT:"))
+                } else {
+                    toast("That is not a Pocket Theater code.")
+                    pairingDialog(device)
+                }
+            }
+            .addOnCanceledListener { pairingDialog(device) }
+            .addOnFailureListener { e ->
+                toast("Scanning is not available (${e.message ?: "error"}). Type the code instead.")
+                pairingDialog(device)
+            }
+    }
+
+    /** Step 3: the code is right, so ask for the admin password. Only then does that device get the admin website. */
+    private fun checkCode(device: SessionStore.Device, typed: String) {
+        val code = typed.trim().replace("-", "").uppercase()
+        if (!SessionStore.shared.pairingMatches(device.id, code)) {
+            toast("That code is not for this device, or it ran out. Tap Show QR again.")
+            return
+        }
+        askText("Admin password", "Enter the admin password to open the admin website on ${device.label}.", true) { password ->
+            when (adminPassword.verify(password)) {
+                PinLock.Result.OK ->
+                    if (SessionStore.shared.completePairing(device.id, code)) {
+                        toast("The admin website is opening on ${device.label}")
+                        rebuildDevices()
+                    } else {
+                        toast("The code ran out. Tap Show QR again.")
+                    }
+                PinLock.Result.WAIT -> toast("Too many tries. Wait ${adminPassword.secondsToWait()} seconds.")
+                PinLock.Result.WRONG -> {
+                    toast("Wrong password. ${adminPassword.triesLeft()} tries left.")
+                    checkCode(device, code)
+                }
+            }
+        }
     }
 
     private fun buildSignups(column: LinearLayout) {
@@ -358,6 +578,9 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
             rowsCard(
                 listOf(
                     row("Version", "This build of the app.", valueText(versionName(), Theme.Muted)),
+                    row("Terms of use", "The rules for using Pocket Theater.", chevron()) { showLegal("Terms of Use", "terms") },
+                    row("Privacy policy", "What is stored, what is seen and what leaves the phone.", chevron()) { showLegal("Privacy Policy", "privacy") },
+                    row("Security policy", "How it is protected, the known limits and how to report a problem.", chevron()) { showLegal("Security Policy", "security") },
                     row(
                         "Website port",
                         "The link on the Dashboard ends with this number." + if (settings.useHttps) " The old port ${ServerService.PORT} sends visitors here." else "",
@@ -582,6 +805,7 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
     }
 
     override fun refresh() {
+        if (openId == "admin" && deviceSignature != devicesSignature()) rebuildDevices()
         // After the person comes back from Android's battery question, show the new answer.
         if (openId == "connection") {
             val now = BatteryHelper.isUnrestricted(activity)
@@ -591,7 +815,7 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
 
     override fun onBack(): Boolean {
         if (openId == null) return false
-        showHome()
+        if (openId == "legal") showCategory("about") else showHome()
         return true
     }
 }

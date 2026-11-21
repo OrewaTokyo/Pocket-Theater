@@ -126,3 +126,7 @@ body.noscroll { overflow: hidden; }
 .conn[hidden] { display: none; }
 .conn.bad { background: #4a1826; color: #ffd9e0; border: 1px solid #ff5c7a; }
 .conn.ok { background: #11382a; color: #cfffe3; border: 1px solid #5cff9d; }
+
+.site-foot { text-align: center; padding: 28px 16px 40px; color: var(--muted); font-size: 0.9rem; }
+.site-foot a { color: var(--muted); }
+.site-foot a:hover { color: var(--ink); }

@@ -2,8 +2,11 @@ function route() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
   const main = document.getElementById("main");
   PT.viewer.close();
+  if (parts[0] !== "admin" && PT.pages.admin) PT.pages.admin.stop();
 
-  if (parts[0] === "account") {
+  if (parts[0] === "admin" && PT.me && PT.me.admin) {
+    PT.pages.admin(main);
+  } else if (parts[0] === "account") {
     PT.pages.account(main);
   } else if (parts[0] === "lib" && parts[1]) {
     PT.nav.render("");
@@ -17,6 +20,7 @@ function route() {
   }
 }
 
+PT.route = route;
 window.addEventListener("hashchange", route);
 route();
 
@@ -28,6 +32,7 @@ PT.connection.start();
 
 // Show who is signed in, top right.
 PT.api.me().then((me) => {
+  PT.session.update(me);
   const who = document.getElementById("who");
   who.textContent = "\u{1F464} " + me.username;
   who.hidden = false;

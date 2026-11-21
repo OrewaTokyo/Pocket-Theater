@@ -30,6 +30,9 @@ object Auth {
     /** A temporary password the admin hands to someone after a reset. */
     fun newPassword(): String = (1..10).map { ALPHABET[random.nextInt(ALPHABET.length)] }.joinToString("")
 
+    /** A short code for pairing a browser as admin. No letters or digits that look alike. */
+    fun newCode(): String = (1..8).map { ALPHABET[random.nextInt(ALPHABET.length)] }.joinToString("").uppercase()
+
     fun newToken(): String {
         val bytes = ByteArray(32).also { random.nextBytes(it) }
         return Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)

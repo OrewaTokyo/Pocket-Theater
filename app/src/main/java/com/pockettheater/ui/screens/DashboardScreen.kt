@@ -19,7 +19,6 @@ import com.pockettheater.core.storage.UserStore
 import com.pockettheater.service.ServerService
 import com.pockettheater.ui.components.BarChart
 import com.pockettheater.ui.components.MATCH
-import com.pockettheater.ui.components.QrCode
 import com.pockettheater.ui.components.RingGauge
 import com.pockettheater.ui.components.WRAP
 import com.pockettheater.ui.components.actionButton
@@ -34,6 +33,7 @@ import com.pockettheater.util.BatteryHelper
 import com.pockettheater.util.DeviceStats
 import com.pockettheater.util.Format
 import com.pockettheater.util.NetworkUtil
+import com.pockettheater.util.QrImage
 
 /** Opens and closes the theater, shows the website link, and shows how the server is doing. */
 class DashboardScreen(private val activity: Activity) : Screen {
@@ -196,7 +196,7 @@ class DashboardScreen(private val activity: Activity) : Screen {
             Toast.makeText(activity, "Open the theater first", Toast.LENGTH_SHORT).show()
             return
         }
-        val picture = QrCode.bitmap(address, activity.dp(280))
+        val picture = QrImage.bitmap(address, activity.dp(280))
         val body = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL

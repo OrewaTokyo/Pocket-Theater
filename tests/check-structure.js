@@ -22,7 +22,7 @@ function walk(rel) {
 // 1. Top level: only known folders and files.
 const ROOT_DIRS = new Set([".git", ".github", "app", "docs", "tests", "tools"]);
 const ROOT_FILES = new Set([
-  ".gitignore", "README.md", "PRIVACY.md", "SECURITY.md", "LICENSE", "build.gradle.kts", "settings.gradle.kts", "gradle.properties", "site.zip",
+  ".gitignore", "README.md", "PRIVACY.md", "SECURITY.md", "TERMS.md", "LICENSE", "build.gradle.kts", "settings.gradle.kts", "gradle.properties", "site.zip",
 ]);
 for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
   if (entry.isDirectory() && !ROOT_DIRS.has(entry.name)) bad('Folder "' + entry.name + '" is not part of the layout. Put it under an existing class folder.');
@@ -58,16 +58,25 @@ for (const m of manifest.matchAll(/android:name="\.([\w.]+)"/g)) {
   if (!exists(rel)) bad("AndroidManifest.xml names ." + m[1] + " but " + rel + " does not exist.");
 }
 
+// 3b. The legal texts exist twice (root, for GitHub, and inside the app, for the website and the phone). They must match.
+[["TERMS.md", "terms.md"], ["PRIVACY.md", "privacy.md"], ["SECURITY.md", "security.md"]].forEach(([top, copy]) => {
+  const inApp = "app/src/main/assets/web/legal/" + copy;
+  if (!exists(top) || !exists(inApp)) { bad("Missing " + top + " or " + inApp); return; }
+  if (fs.readFileSync(path.join(root, top), "utf8") !== fs.readFileSync(path.join(root, inApp), "utf8")) {
+    bad(top + " and " + inApp + " differ. Copy " + top + " over " + inApp + ".");
+  }
+});
+
 // 4. Web site: every file is used by index.html, and everything index.html uses exists.
 const WEB = "app/src/main/assets/web";
-const WEB_FOLDERS = ["pages", "components", "styles", "scripts"];
+const WEB_FOLDERS = ["pages", "components", "styles", "scripts", "legal"];
 // The signed-in site (index.html) and the sign in screen (login.html) each load their own files.
-const PAGES = ["index.html", "login.html"];
+const PAGES = ["index.html", "login.html", "legal.html"];
 const used = new Set();
 PAGES.forEach((page) => {
   if (!exists(WEB + "/" + page)) { bad("Missing " + WEB + "/" + page); return; }
   const html = fs.readFileSync(path.join(root, WEB, page), "utf8");
-  [...html.matchAll(/(?:src|href)="\/([^"]+)"/g)].forEach((m) => used.add(m[1]));
+  [...html.matchAll(/(?:src|href)="\/([^"]+)"/g)].forEach((m) => used.add(m[1].split(/[?#]/)[0]));
 });
 used.forEach((rel) => { if (!exists(WEB + "/" + rel)) bad("A page uses /" + rel + " but the file does not exist."); });
 const webFiles = walk(WEB).map((f) => f.slice(WEB.length + 1));

@@ -35,3 +35,5 @@
 .go:disabled { opacity: 0.6; cursor: default; }
 
 .auth-warn { max-width: 420px; margin: 14px 0 0; text-align: center; color: #ffcf8a; font-size: 0.9rem; font-weight: 600; }
+.auth-card label.agree { align-items: flex-start; }
+.auth-card label.agree a, .auth-foot a { color: var(--cyan); }

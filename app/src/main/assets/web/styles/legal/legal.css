@@ -1,0 +1,16 @@
+.legal { max-width: 760px; margin: 0 auto; padding: 24px 18px 64px; }
+.legal header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-bottom: 20px; }
+.legal .brand { font-family: var(--font-display); font-size: 1.2rem; color: var(--marquee); text-decoration: none; }
+.legal-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.legal-tabs a { padding: 7px 14px; border-radius: 999px; text-decoration: none; color: var(--ink); background: var(--surface); border: 1px solid var(--marquee-dim); }
+.legal-tabs a[aria-current="page"] { background: var(--marquee); color: var(--midnight); font-weight: 700; }
+#doc h2 { font-family: var(--font-display); font-weight: 400; font-size: 2rem; margin: 8px 0 10px; }
+#doc h3 { color: var(--marquee); margin: 26px 0 6px; font-size: 1.2rem; }
+#doc h4 { margin: 18px 0 4px; }
+#doc p, #doc li { line-height: 1.6; }
+#doc a { color: var(--cyan); }
+#doc code { background: var(--surface); padding: 1px 6px; border-radius: 6px; }
+.table-wrap { overflow-x: auto; }
+#doc table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+#doc th, #doc td { text-align: left; vertical-align: top; padding: 9px 12px; border: 1px solid var(--surface-hi); }
+#doc th { background: var(--surface); }

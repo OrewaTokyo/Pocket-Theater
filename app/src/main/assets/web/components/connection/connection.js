@@ -32,6 +32,9 @@ PT.connection = (function () {
       const res = await fetch("/api/me", { cache: "no-store", signal: stop.signal });
       clearTimeout(giveUp);
       if (res.status === 401) location.href = "/login.html";
+      else if (res.ok) {
+        try { PT.session.update(await res.json()); } catch (err) { /* keep going */ }
+      }
       return true;
     } catch (err) {
       clearTimeout(giveUp);

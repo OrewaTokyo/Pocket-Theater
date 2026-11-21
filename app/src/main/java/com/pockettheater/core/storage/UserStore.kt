@@ -16,6 +16,7 @@ data class Account(
     val hash: String,
     val version: Int,
     val created: Long,
+    val agreed: Long = 0L, // when they accepted the Terms of Use and Privacy Policy while asking to join (0 for older accounts)
 )
 
 /** Remembers who asked for access, who the admin approved, and each person's scrambled password. */
@@ -32,7 +33,7 @@ class UserStore(context: Context) {
     fun revision(): Int = prefs.getString(KEY, "").orEmpty().hashCode()
 
     /** Saves a sign-up request. Returns null when saved, or a sentence saying why not. */
-    fun register(name: String, password: String): String? {
+    fun register(name: String, password: String, agreedAt: Long): String? {
         val salt = Auth.newSalt()
         val hash = Auth.hash(password, salt)
         return synchronized(LOCK) {
@@ -42,7 +43,7 @@ class UserStore(context: Context) {
                 list.count { it.status == AccountStatus.PENDING } >= MAX_PENDING ->
                     "Too many requests are waiting. Ask the admin to clear them first."
                 else -> {
-                    write(list + Account(name, AccountStatus.PENDING, enc(salt), enc(hash), 0, System.currentTimeMillis()))
+                    write(list + Account(name, AccountStatus.PENDING, enc(salt), enc(hash), 0, System.currentTimeMillis(), agreedAt))
                     null
                 }
             }
@@ -100,7 +101,7 @@ class UserStore(context: Context) {
             val o = arr.getJSONObject(i)
             Account(
                 o.getString("name"), AccountStatus.valueOf(o.getString("status")),
-                o.getString("salt"), o.getString("hash"), o.optInt("version", 0), o.optLong("created", 0L)
+                o.getString("salt"), o.getString("hash"), o.optInt("version", 0), o.optLong("created", 0L), o.optLong("agreed", 0L)
             )
         }
     }
@@ -110,7 +111,7 @@ class UserStore(context: Context) {
         list.forEach {
             arr.put(
                 JSONObject().put("name", it.name).put("status", it.status.name).put("salt", it.salt)
-                    .put("hash", it.hash).put("version", it.version).put("created", it.created)
+                    .put("hash", it.hash).put("version", it.version).put("created", it.created).put("agreed", it.agreed)
             )
         }
         prefs.edit().putString(KEY, arr.toString()).apply()

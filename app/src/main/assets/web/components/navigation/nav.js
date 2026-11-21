@@ -6,6 +6,7 @@ PT.nav = {
     const links = [["Home", "\u{1F3AD} Home", "#/"]].concat(
       PT.cats.map((c) => [c.id, c.icon + " " + c.label, "#/cat/" + PT.util.enc(c.id)])
     );
+    if (PT.me && PT.me.admin) links.push(["Admin", "\u{1F6E0} Admin", "#/admin"]);
     nav.replaceChildren(
       ...links.map(([id, label, href]) => {
         const a = el("a", { href, text: label });

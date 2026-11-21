@@ -16,6 +16,11 @@
         android:label="@string/app_name"
         android:theme="@android:style/Theme.Material.NoActionBar">
 
+        <!-- Lets Google Play services fetch the QR scanner when the app is installed, so it is ready for the first scan. -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="barcode_ui" />
+
         <activity
             android:name=".ui.screens.SplashActivity"
             android:exported="true"

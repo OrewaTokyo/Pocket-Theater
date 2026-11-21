@@ -36,4 +36,9 @@ class AppSettings(context: Context) {
     var useHttps: Boolean
         get() = prefs.getBoolean("use_https", true)
         set(value) { prefs.edit().putBoolean("use_https", value).apply() }
+
+    /** When on, the admin can open admin tools in a browser on another device by pairing it with a QR code. Off by default. */
+    var adminWebEnabled: Boolean
+        get() = prefs.getBoolean("admin_web_enabled", false)
+        set(value) { prefs.edit().putBoolean("admin_web_enabled", value).apply() }
 }

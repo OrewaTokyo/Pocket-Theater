@@ -13,6 +13,11 @@ import com.pockettheater.core.storage.AppSettings
 import com.pockettheater.core.storage.DocumentBrowser
 import com.pockettheater.core.storage.ShareStore
 import com.pockettheater.core.storage.UserStore
+import com.pockettheater.util.DeviceLabel
+import com.pockettheater.util.DeviceStats
+import com.pockettheater.util.Format
+import com.pockettheater.util.QrImage
+import java.io.ByteArrayInputStream
 import fi.iki.elonen.NanoHTTPD
 import fi.iki.elonen.NanoHTTPD.IHTTPSession
 import fi.iki.elonen.NanoHTTPD.Method
@@ -36,7 +41,8 @@ class PocketServer(
     private val store = ShareStore(appContext)
     private val users = UserStore(appContext)
     private val settings = AppSettings(appContext)
-    private val sessions = SessionStore()
+    private val sessions = SessionStore.shared
+    private val deviceStats = DeviceStats(appContext)
     private val loginThrottle = LoginThrottle(8, 10 * 60_000L)
     private val signupThrottle = LoginThrottle(5, 10 * 60_000L)
     private val browser = DocumentBrowser(appContext.contentResolver)
@@ -64,8 +70,9 @@ class PocketServer(
         val user = currentUser(session)
         if (user != null) ServerStats.visit(user.name)
         return when {
-            uri == "/api/me" ->
-                if (user == null) signedOut() else jsonResponse(Status.OK, JSONObject().put("username", user.name))
+            uri == "/api/me" -> if (user == null) signedOut() else me(session, user)
+            uri == "/api/pair/qr" -> if (user == null) signedOut() else pairingQr(session)
+            uri.startsWith("/api/admin/") -> adminGet(session, uri, user)
             uri == "/api/libraries" -> if (user == null) signedOut() else libraries()
             uri == "/api/list" -> if (user == null) signedOut() else list(session)
             uri == "/file" -> if (user == null) signedOut() else file(session)
@@ -77,6 +84,134 @@ class PocketServer(
     }
 
     private fun signedOut(): Response = jsonError(Status.UNAUTHORIZED, "Sign in first.")
+
+    // ---- admin website ----
+
+    /** Who is asking, whether this browser has been opened as admin, and a pairing code if the phone started one. */
+    private fun me(session: IHTTPSession, user: Account): Response {
+        val token = cookie(session, Auth.COOKIE)
+        val body = JSONObject().put("username", user.name)
+        val adminOn = settings.adminWebEnabled && secure
+        // Asking who you are must not keep the admin session alive, only real admin actions do.
+        body.put("admin", adminOn && sessions.isAdmin(token, false))
+        val pair = if (adminOn) sessions.pairing(token) else null
+        if (pair != null) {
+            val left = ((pair.second - System.currentTimeMillis()) / 1000).toInt().coerceAtLeast(0)
+            body.put("pair", JSONObject().put("code", pair.first).put("expires_in", left))
+        }
+        return jsonResponse(Status.OK, body)
+    }
+
+    /** The QR picture for this browser's own pairing code. The phone scans it. */
+    private fun pairingQr(session: IHTTPSession): Response {
+        val pair = (if (settings.adminWebEnabled && secure) sessions.pairing(cookie(session, Auth.COOKIE)) else null)
+            ?: return jsonError(Status.NOT_FOUND, "Nothing to pair.")
+        val bytes = QrImage.png("PT:" + pair.first, 420)
+        return newFixedLengthResponse(Status.OK, "image/png", ByteArrayInputStream(bytes), bytes.size.toLong())
+            .also { it.addHeader("Cache-Control", "no-store") }
+    }
+
+    /** Null when this browser may use the admin website, otherwise the error to send back. */
+    private fun adminDenied(session: IHTTPSession, user: Account?): Response? {
+        if (user == null) return signedOut()
+        if (!secure) return jsonError(Status.FORBIDDEN, "The admin website only works over HTTPS.")
+        if (!settings.adminWebEnabled || !sessions.isAdmin(cookie(session, Auth.COOKIE), true)) {
+            return jsonError(Status.FORBIDDEN, "Admin access is not open on this device. Start it again from the phone.")
+        }
+        return null
+    }
+
+    private fun adminGet(session: IHTTPSession, uri: String, user: Account?): Response {
+        adminDenied(session, user)?.let { return it }
+        return when (uri) {
+            "/api/admin/overview" -> adminOverview()
+            "/api/admin/users" -> adminUsers()
+            "/api/admin/devices" -> adminDevices(session)
+            else -> jsonError(Status.NOT_FOUND, "Not found")
+        }
+    }
+
+    private fun adminOverview(): Response {
+        val stats = ServerStats.snapshot(appContext)
+        val device = deviceStats.read()
+        val body = JSONObject()
+            .put("awake", Format.duration(stats.awakeMs))
+            .put("awake_total", Format.duration(stats.lifetimeAwakeMs))
+            .put("members", users.members().size)
+            .put("waiting", users.pending().size)
+            .put("online", stats.online)
+            .put("data_total", Format.bytes(stats.lifetimeBytes))
+            .put("data_session", Format.bytes(stats.sessionBytes))
+            .put("requests_total", Format.count(stats.lifetimeRequests))
+            .put("requests_session", Format.count(stats.sessionRequests))
+            .put("cpu", device.cpuPercent.toInt())
+            .put("ram", device.ramPercent.toInt())
+            .put("battery", device.batteryPercent)
+            .put("charging", device.charging)
+        return jsonResponse(Status.OK, body)
+    }
+
+    private fun adminUsers(): Response {
+        val pending = org.json.JSONArray()
+        users.pending().forEach { pending.put(JSONObject().put("name", it.name).put("created", it.created)) }
+        val members = org.json.JSONArray()
+        users.members().forEach {
+            members.put(JSONObject().put("name", it.name).put("status", if (it.status == AccountStatus.OFF) "off" else "active").put("created", it.created))
+        }
+        return jsonResponse(Status.OK, JSONObject().put("pending", pending).put("members", members))
+    }
+
+    private fun adminDevices(session: IHTTPSession): Response {
+        val mine = sessions.deviceId(cookie(session, Auth.COOKIE))
+        val list = org.json.JSONArray()
+        sessions.devices().forEach {
+            list.put(
+                JSONObject().put("id", it.id).put("user", it.user).put("label", it.label).put("ip", it.ip)
+                    .put("since", it.since).put("admin", it.admin).put("you", it.id == mine)
+            )
+        }
+        return jsonResponse(Status.OK, JSONObject().put("devices", list))
+    }
+
+    private fun adminPost(session: IHTTPSession, uri: String, json: JSONObject): Response {
+        val me = currentUser(session)
+        adminDenied(session, me)?.let { return it }
+        val token = cookie(session, Auth.COOKIE)
+        when (uri) {
+            "/api/admin/end" -> {
+                sessions.deviceId(token)?.let { sessions.revokeAdmin(it) }
+                return jsonResponse(Status.OK, JSONObject().put("ok", true))
+            }
+            "/api/admin/device" -> {
+                val id = json.optString("id")
+                when (json.optString("action")) {
+                    "signout" -> sessions.endDevice(id)
+                    "revoke" -> sessions.revokeAdmin(id)
+                    else -> return jsonError(Status.BAD_REQUEST, "Unknown action.")
+                }
+                return jsonResponse(Status.OK, JSONObject().put("ok", true))
+            }
+            "/api/admin/user" -> {
+                val name = json.optString("name").trim().lowercase()
+                val target = users.find(name) ?: return jsonError(Status.NOT_FOUND, "No such account.")
+                if (me != null && target.name == me.name) {
+                    return jsonError(Status.BAD_REQUEST, "Use the phone to change your own account.")
+                }
+                val body = JSONObject().put("ok", true)
+                when (json.optString("action")) {
+                    "approve" -> users.approve(name)
+                    "decline" -> users.decline(name)
+                    "off" -> users.setOff(name, true)
+                    "on" -> users.setOff(name, false)
+                    "delete" -> users.delete(name)
+                    "reset" -> body.put("password", users.resetPassword(name))
+                    else -> return jsonError(Status.BAD_REQUEST, "Unknown action.")
+                }
+                return jsonResponse(Status.OK, body)
+            }
+        }
+        return jsonError(Status.NOT_FOUND, "Not found")
+    }
 
     // ---- accounts ----
 
@@ -92,6 +227,7 @@ class PocketServer(
         } catch (e: Exception) {
             return jsonError(Status.BAD_REQUEST, "That request could not be read.")
         }
+        if (uri.startsWith("/api/admin/")) return adminPost(session, uri, json)
         return when (uri) {
             "/api/login" -> login(session, json)
             "/api/register" -> register(session, json)
@@ -114,7 +250,10 @@ class PocketServer(
         val password = json.optString("password")
         if (!Auth.validUsername(name)) return jsonError(Status.BAD_REQUEST, Auth.USERNAME_RULE)
         Auth.passwordProblem(password)?.let { return jsonError(Status.BAD_REQUEST, it) }
-        users.register(name, password)?.let { return jsonError(Status.BAD_REQUEST, it) }
+        if (!json.optBoolean("agree", false)) {
+            return jsonError(Status.BAD_REQUEST, "Please accept the Terms of Use and the Privacy Policy.")
+        }
+        users.register(name, password, System.currentTimeMillis())?.let { return jsonError(Status.BAD_REQUEST, it) }
         onSignupRequest(name)
         return jsonResponse(Status.OK, JSONObject().put("ok", true))
     }
@@ -139,7 +278,7 @@ class PocketServer(
             AccountStatus.ACTIVE -> Unit
         }
         loginThrottle.clear(ip)
-        return signedIn(account)
+        return signedIn(session, account)
     }
 
     private fun logout(session: IHTTPSession): Response {
@@ -164,11 +303,11 @@ class PocketServer(
         users.setPassword(me.name, next)
         sessions.end(cookie(session, Auth.COOKIE))
         val fresh = users.find(me.name) ?: return signedOut()
-        return signedIn(fresh)
+        return signedIn(session, fresh)
     }
 
-    private fun signedIn(account: Account): Response {
-        val token = sessions.start(account.name, account.version)
+    private fun signedIn(session: IHTTPSession, account: Account): Response {
+        val token = sessions.start(account.name, account.version, clientIp(session), DeviceLabel.from(session.headers["user-agent"]))
         return jsonResponse(Status.OK, JSONObject().put("username", account.name))
             .also { it.addHeader("Set-Cookie", sessionCookie(token, Auth.SESSION_SECONDS)) }
     }

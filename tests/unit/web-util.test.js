@@ -39,7 +39,7 @@ assert.ok(u.passwordProblem("short"));
 assert.ok(u.passwordProblem("x".repeat(65)));
 
 // Polling: calm while all is well, quicker after a miss, never slower than 6 seconds while offline.
-assert.strictEqual(u.pollDelay(true, 0), 5000);
+assert.strictEqual(u.pollDelay(true, 0), 3000);
 assert.strictEqual(u.pollDelay(true, 1), 1500);
 assert.strictEqual(u.pollDelay(false, 2), 2500);
 assert.strictEqual(u.pollDelay(false, 40), 6000);
