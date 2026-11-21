@@ -13,6 +13,7 @@ PDFs and more. No internet, no accounts, no cloud.
 - 📊 Phone app with three tabs (Dashboard, Folders, Profile): Dashboard (open/close, link, wake time, users, data sent, requests, CPU, RAM, battery, traffic), Folders (placeholder for now) and Profile (Admin tools, Settings)
 - 🔐 Optional PIN lock for the phone app (Profile > Settings > Privacy and data), with a hide-in-recent-apps switch and searchable, categorised settings
 - 🔏 HTTPS with a certificate the phone makes itself, plus a QR code to open the link on another device
+- 📜 Terms of use and Privacy policy, in the app (Profile > Terms and privacy) and at the bottom of the website; the admin agrees on first launch and new people tick a box to request access
 - 🔒 Real accounts: people request access on the website, you approve them on the phone, and you can reset passwords there 
 - 📶 Works with just Wi-Fi or the phone's hotspot
 - 🎟️ Series, Anime, Movies, Gaming and Documents shelves, each with its own colour and a ticket-stub look
@@ -40,5 +41,6 @@ Apache-2.0
 
 ## Privacy and security
 
+- [TERMS.md](TERMS.md): the rules for the admin and the people they approve
 - [PRIVACY.md](PRIVACY.md): what the app stores, what it can see and what leaves the phone
 - [SECURITY.md](SECURITY.md): how to report a problem, what is protected and the known limits

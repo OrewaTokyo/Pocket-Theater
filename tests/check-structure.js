@@ -22,7 +22,7 @@ function walk(rel) {
 // 1. Top level: only known folders and files.
 const ROOT_DIRS = new Set([".git", ".github", "app", "docs", "tests", "tools"]);
 const ROOT_FILES = new Set([
-  ".gitignore", "README.md", "PRIVACY.md", "SECURITY.md", "LICENSE", "build.gradle.kts", "settings.gradle.kts", "gradle.properties", "site.zip",
+  ".gitignore", "README.md", "PRIVACY.md", "SECURITY.md", "TERMS.md", "LICENSE", "build.gradle.kts", "settings.gradle.kts", "gradle.properties", "site.zip",
 ]);
 for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
   if (entry.isDirectory() && !ROOT_DIRS.has(entry.name)) bad('Folder "' + entry.name + '" is not part of the layout. Put it under an existing class folder.');
@@ -60,14 +60,14 @@ for (const m of manifest.matchAll(/android:name="\.([\w.]+)"/g)) {
 
 // 4. Web site: every file is used by index.html, and everything index.html uses exists.
 const WEB = "app/src/main/assets/web";
-const WEB_FOLDERS = ["pages", "components", "styles", "scripts"];
-// The signed-in site (index.html) and the sign in screen (login.html) each load their own files.
-const PAGES = ["index.html", "login.html"];
+const WEB_FOLDERS = ["pages", "components", "styles", "scripts", "legal"];
+// The signed-in site (index.html), the sign in screen (login.html) and the Terms page (legal.html) each load their own files.
+const PAGES = ["index.html", "login.html", "legal.html"];
 const used = new Set();
 PAGES.forEach((page) => {
   if (!exists(WEB + "/" + page)) { bad("Missing " + WEB + "/" + page); return; }
   const html = fs.readFileSync(path.join(root, WEB, page), "utf8");
-  [...html.matchAll(/(?:src|href)="\/([^"]+)"/g)].forEach((m) => used.add(m[1]));
+  [...html.matchAll(/(?:src|href)="\/([^"]+)"/g)].forEach((m) => used.add(m[1].split(/[?#]/)[0]));
 });
 used.forEach((rel) => { if (!exists(WEB + "/" + rel)) bad("A page uses /" + rel + " but the file does not exist."); });
 const webFiles = walk(WEB).map((f) => f.slice(WEB.length + 1));
@@ -75,6 +75,15 @@ webFiles.forEach((rel) => {
   if (PAGES.includes(rel)) return;
   if (!WEB_FOLDERS.includes(rel.split("/")[0])) bad("web/" + rel + " is not inside pages, components, styles or scripts.");
   else if (/\.(js|css)$/.test(rel) && !used.has(rel)) bad("web/" + rel + " is not used by index.html or login.html.");
+});
+
+// 5. The Terms and Privacy pages are shown from copies inside the app. A copy must match the file in the repo root.
+[["TERMS.md", "terms.md"], ["PRIVACY.md", "privacy.md"]].forEach(([rootName, copyName]) => {
+  const copy = WEB + "/legal/" + copyName;
+  if (!exists(rootName) || !exists(copy)) { bad("Missing " + rootName + " or " + copy); return; }
+  if (fs.readFileSync(path.join(root, rootName), "utf8") !== fs.readFileSync(path.join(root, copy), "utf8")) {
+    bad(copy + " is out of date. Copy " + rootName + " over it.");
+  }
 });
 
 if (problems.length) {

@@ -12,7 +12,7 @@ Last updated: 21 November 2026
 | PIN lock | If you turn it on, a scrambled form of the PIN and a counter of wrong tries. |
 | Shared folders | The folder's name, the shelf you put it under (Series, Anime, Movies, Gaming and so on), and Android's permission link to the folder. The app does not copy your files. |
 | HTTPS certificate | A certificate and key the phone makes for itself. The private key stays in Android's key store. |
-| Settings | The switches and choices in Profile > Settings. |
+| Settings | The switches and choices in Profile > Settings, and which version of the Terms and this Policy you agreed to on the phone. |
 | Dashboard totals | Three running numbers: total data sent, total requests, and total time awake. They hold no file names, no usernames and no addresses. |
 
 These live only in memory and disappear when the theater closes or the app stops: who is signed in, who was active in the last 3 minutes, the hourly traffic chart, and the counters that slow down password guessing (which use a device's address on your network).
@@ -46,6 +46,10 @@ Files and pages are sent to the devices of approved people over your own Wi-Fi o
 
 The website sets one cookie, `pt_session`. It keeps you signed in for up to 14 days, can't be read by page scripts (HttpOnly), is not sent from other sites (SameSite=Strict), and is only sent over HTTPS when HTTPS is on (Secure). There are no tracking or advertising cookies.
 
+## Agreeing to the Terms
+
+The admin agrees on the phone the first time the app opens, and again if the Terms change in a way that matters. People who ask for access on the website tick a box to agree before they can send the request. The box is required, but the app does not keep a record of it.
+
 ## Backups
 
 Android backup is turned off for this app, so accounts, the PIN and settings are not copied into cloud backups.
@@ -57,6 +61,7 @@ Android backup is turned off for this app, so accounts, the PIN and settings are
 - Stop sharing a folder: Profile > Admin tools > Shared folders > Remove.
 - Turn off the PIN lock: Profile > Settings > Privacy and data.
 - Make a new HTTPS certificate: Profile > Settings > Connection.
+- Read the Terms and this Policy again: Profile > Terms and privacy on the phone, or the links at the bottom of the website.
 - Remove everything: clear the app's data in Android settings, or uninstall the app. This also removes the PIN, the accounts and the folder list.
 
 ## Changes

@@ -56,9 +56,10 @@
     const problem = PT.util.usernameProblem(username) || PT.util.passwordProblem(password) ||
       (password !== $("rg-pass2").value ? "The two passwords are not the same." : null);
     if (problem) { msg.textContent = problem; return; }
+    if (!$("rg-agree").checked) { msg.textContent = "Please agree to the Terms of use and the Privacy policy first."; return; }
     busy(forms.register, true);
     try {
-      await PT.api.post("/api/register", { username, password });
+      await PT.api.post("/api/register", { username, password, agree: true });
       forms.register.reset();
       Object.values(forms).forEach((f) => { f.hidden = true; });
       $("sent").hidden = false;

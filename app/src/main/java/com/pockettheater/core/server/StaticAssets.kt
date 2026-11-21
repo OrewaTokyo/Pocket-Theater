@@ -31,6 +31,7 @@ class StaticAssets(private val context: Context) {
         "jpg", "jpeg" -> "image/jpeg"
         "webp" -> "image/webp"
         "ico" -> "image/x-icon"
+        "md" -> "text/markdown; charset=utf-8"
         else -> "application/octet-stream"
     }
 }

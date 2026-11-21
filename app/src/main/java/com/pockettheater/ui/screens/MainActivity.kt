@@ -33,6 +33,7 @@ import com.pockettheater.ui.components.dp
 import com.pockettheater.ui.components.lp
 import com.pockettheater.ui.components.textView
 import com.pockettheater.ui.theme.Theme
+import com.pockettheater.util.MarkdownText
 
 /** The shell: the three pages (Dashboard, Folders, Profile) and the tab bar along the bottom. */
 class MainActivity : Activity() {
@@ -81,6 +82,7 @@ class MainActivity : Activity() {
         select(savedInstanceState?.getInt(STATE_TAB) ?: 0)
         applyScreenPrivacy()
         lockNow()
+        askLegalIfNeeded()
 
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -118,6 +120,47 @@ class MainActivity : Activity() {
         else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
     }
 
+    /** The first time, and whenever the Terms change in a way that matters, the admin has to agree before using the app. */
+    private fun askLegalIfNeeded() {
+        if (locked || settings.acceptedLegalVersion >= AppSettings.LEGAL_VERSION) return
+        AlertDialog.Builder(this)
+            .setTitle("Before you start")
+            .setMessage(
+                "Pocket Theater keeps everything on this phone and sends nothing to the developer or to any online service.\n\n" +
+                    "You are responsible for the files you share and for the people you approve. Read the Terms of use and the Privacy policy, then agree to carry on."
+            )
+            .setCancelable(false)
+            .setPositiveButton("I agree") { _, _ -> settings.acceptedLegalVersion = AppSettings.LEGAL_VERSION }
+            .setNeutralButton("Read them") { _, _ -> chooseLegalToRead() }
+            .setNegativeButton("Close app") { _, _ -> finish() }
+            .show()
+    }
+
+    private fun chooseLegalToRead() {
+        AlertDialog.Builder(this)
+            .setTitle("Read first")
+            .setItems(arrayOf("Terms of use", "Privacy policy")) { _, which ->
+                showLegalText(if (which == 0) "terms" else "privacy")
+            }
+            .setOnCancelListener { askLegalIfNeeded() }
+            .show()
+    }
+
+    private fun showLegalText(name: String) {
+        val text = TextView(this).apply {
+            this.text = MarkdownText.fromAsset(this@MainActivity, name)
+            setTextColor(Theme.Ink)
+            textSize = 15f
+            setLineSpacing(0f, 1.2f)
+            setPadding(dp(20), dp(8), dp(20), dp(8))
+        }
+        AlertDialog.Builder(this)
+            .setView(ScrollView(this).apply { addView(text) })
+            .setPositiveButton("Back") { _, _ -> chooseLegalToRead() }
+            .setOnCancelListener { chooseLegalToRead() }
+            .show()
+    }
+
     /** Covers the app and asks for the PIN. Does nothing when no PIN is set. */
     private fun lockNow() {
         if (!pinLock.isSet()) return
@@ -134,6 +177,7 @@ class MainActivity : Activity() {
                 leftAt = 0L
                 lockPad.clear()
                 lockView.visibility = View.GONE
+                askLegalIfNeeded()
             }
             PinLock.Result.WAIT -> {
                 lockPad.clear()

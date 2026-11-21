@@ -4,7 +4,7 @@
 2. The quick checks run first (folder layout, web helper tests). If one fails, nothing is built.
 3. The build then checks the APK itself (app id, version, Android 12 minimum, permissions, signature) and publishes it as a release.
 4. On the phone, open the repo's **Releases** page, download `PocketTheater-v….apk` and install it.
-5. Open Pocket Theater and tap **Add folder**. Pick a folder and choose what is in it (Series, Anime, Movies, Gaming and so on).
+5. Open Pocket Theater. The first time, it asks you to agree to the Terms of use and the Privacy policy. Then tap **Add folder**. Pick a folder and choose what is in it (Series, Anime, Movies, Gaming and so on).
 6. Tap **Open theater**. The phone shows the website link (https, port 8443). Open it from your laptop browser, or tap **QR code** and scan it with a phone or tablet.
    The first time, the browser warns that the connection is not private. That is because the phone made its own certificate. Open **Profile > Settings > Connection** (or the QR code window) to see the phone's fingerprint, compare it with the one in the browser's warning, then choose Advanced and continue.
 7. Each person taps **Request access** on the sign-in page and picks a username and password. You get a notification on the phone.

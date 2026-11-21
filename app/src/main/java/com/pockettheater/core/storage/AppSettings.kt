@@ -36,4 +36,14 @@ class AppSettings(context: Context) {
     var useHttps: Boolean
         get() = prefs.getBoolean("use_https", true)
         set(value) { prefs.edit().putBoolean("use_https", value).apply() }
+
+    /** The version of the Terms of use and Privacy policy the admin agreed to on this phone. 0 means not yet. */
+    var acceptedLegalVersion: Int
+        get() = prefs.getInt("legal_version", 0)
+        set(value) { prefs.edit().putInt("legal_version", value).apply() }
+
+    companion object {
+        /** Raise this number when the Terms change in a way that matters, and the app asks the admin to agree again. */
+        const val LEGAL_VERSION = 1
+    }
 }

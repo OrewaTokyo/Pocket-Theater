@@ -105,6 +105,9 @@ class PocketServer(
         if (!settings.signupsOpen) {
             return jsonError(Status.FORBIDDEN, "New sign-ups are closed right now. Ask the admin.")
         }
+        if (!json.optBoolean("agree", false)) {
+            return jsonError(Status.BAD_REQUEST, "Please agree to the Terms of use and the Privacy policy first.")
+        }
         val ip = clientIp(session)
         if (signupThrottle.blocked(ip)) {
             return jsonError(Http.TOO_MANY, "Too many requests from this device. Try again in a few minutes.")

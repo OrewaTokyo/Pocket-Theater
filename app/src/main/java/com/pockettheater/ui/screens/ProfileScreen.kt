@@ -26,6 +26,7 @@ class ProfileScreen(private val activity: Activity, pinLock: PinLock, onAddFolde
     private val users = UserStore(activity)
     private val admin = AdminToolsPage(activity, onAddFolder)
     private val settings = SettingsPage(activity, pinLock)
+    private val legal = LegalPage(activity)
     private val holder = FrameLayout(activity)
     private val waitingText = activity.textView("", 14f, Theme.Muted)
     private var page: Screen? = null
@@ -86,6 +87,7 @@ class ProfileScreen(private val activity: Activity, pinLock: PinLock, onAddFolde
 
         column.addView(menuRow(R.drawable.ic_build, Theme.Marquee, "Admin tools", waitingText) { open("Admin tools", admin) }, activity.lp(MATCH, WRAP, top = 16))
         column.addView(menuRow(R.drawable.ic_settings, Theme.Cyan, "Settings", null) { open("Settings", settings) }, activity.lp(MATCH, WRAP, top = 12))
+        column.addView(menuRow(R.drawable.ic_info, Theme.Pink, "Terms and privacy", null) { open("Terms and privacy", legal) }, activity.lp(MATCH, WRAP, top = 12))
 
         show(ScrollView(activity).apply { addView(column) })
         refreshHome()
