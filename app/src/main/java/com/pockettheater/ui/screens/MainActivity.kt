@@ -14,16 +14,20 @@ import android.os.SystemClock
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
+import android.view.WindowManager
+import android.widget.ImageView
+import android.widget.ScrollView
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
-import com.pockettheater.core.security.AppLock
+import com.pockettheater.R
+import com.pockettheater.core.security.PinLock
 import com.pockettheater.core.storage.AppSettings
 import com.pockettheater.core.storage.DocumentBrowser
 import com.pockettheater.core.storage.ShareStore
 import com.pockettheater.service.ServerService
 import com.pockettheater.ui.components.MATCH
-import com.pockettheater.ui.components.actionButton
+import com.pockettheater.ui.components.PinPad
 import com.pockettheater.ui.components.WRAP
 import com.pockettheater.ui.components.dp
 import com.pockettheater.ui.components.lp
@@ -37,14 +41,14 @@ class MainActivity : Activity() {
     private lateinit var profile: ProfileScreen
     private lateinit var screens: List<Screen>
     private lateinit var content: FrameLayout
-    private lateinit var appLock: AppLock
+    private lateinit var pinLock: PinLock
     private lateinit var settings: AppSettings
     private lateinit var lockView: View
-    private lateinit var lockMessage: TextView
+    private lateinit var lockPad: PinPad
     private var locked = false
-    private var promptDue = false
     private var leftAt = 0L
-    private val tabIcons = ArrayList<TextView>()
+    private val tabItems = ArrayList<LinearLayout>()
+    private val tabIcons = ArrayList<ImageView>()
     private val tabLabels = ArrayList<TextView>()
     private var tab = 0
     private val handler = Handler(Looper.getMainLooper())
@@ -60,8 +64,8 @@ class MainActivity : Activity() {
         store = ShareStore(this)
         browser = DocumentBrowser(contentResolver)
         settings = AppSettings(this)
-        appLock = AppLock(this)
-        profile = ProfileScreen(this, appLock) { pickFolder() }
+        pinLock = PinLock(this)
+        profile = ProfileScreen(this, pinLock) { pickFolder() }
         screens = listOf(
             DashboardScreen(this),
             FoldersScreen(this) { select(2); profile.openAdminTools() },
@@ -75,7 +79,8 @@ class MainActivity : Activity() {
             addView(lockView, FrameLayout.LayoutParams(MATCH, MATCH))
         })
         select(savedInstanceState?.getInt(STATE_TAB) ?: 0)
-        if (settings.lockEnabled) lockNow()
+        applyScreenPrivacy()
+        lockNow()
 
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -92,7 +97,7 @@ class MainActivity : Activity() {
     override fun onStart() {
         super.onStart()
         val awayMs = SystemClock.elapsedRealtime() - leftAt
-        if (!locked && settings.lockEnabled && leftAt != 0L && awayMs >= settings.lockAfterSeconds * 1000L) lockNow()
+        if (!locked && leftAt != 0L && awayMs >= settings.lockAfterSeconds * 1000L) lockNow()
     }
 
     override fun onStop() {
@@ -103,47 +108,67 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         getSystemService(NotificationManager::class.java).cancel(ServerService.NOTIF_REQUEST)
-        // While the lock is on, keep this app's picture out of the recent-apps list.
-        if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(!settings.lockEnabled)
+        applyScreenPrivacy()
         handler.post(ticker)
-        if (locked && promptDue) askToUnlock()
     }
 
-    /** Covers the app and asks for the phone's unlock. If the phone has no screen lock any more, the app lock turns itself off. */
+    /** Blank picture in the recent-apps list, and no screenshots, when the admin asked for it. */
+    private fun applyScreenPrivacy() {
+        if (settings.hideInRecents) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+    }
+
+    /** Covers the app and asks for the PIN. Does nothing when no PIN is set. */
     private fun lockNow() {
-        if (!appLock.available()) {
-            settings.lockEnabled = false
-            return
-        }
+        if (!pinLock.isSet()) return
         locked = true
-        promptDue = true
+        lockPad.clear()
+        lockPad.setMessage("Enter your PIN to open it.")
         lockView.visibility = View.VISIBLE
-        lockMessage.text = "Use your fingerprint, face or phone PIN"
     }
 
-    private fun askToUnlock() {
-        promptDue = false
-        appLock.authenticate("Unlock Pocket Theater", "Use your fingerprint, face or phone PIN") { ok ->
-            if (ok) {
+    private fun tryPin(pin: String) {
+        when (pinLock.verify(pin)) {
+            PinLock.Result.OK -> {
                 locked = false
                 leftAt = 0L
+                lockPad.clear()
                 lockView.visibility = View.GONE
-            } else {
-                lockMessage.text = "Still locked. Tap Unlock to try again."
+            }
+            PinLock.Result.WAIT -> {
+                lockPad.clear()
+                lockPad.setMessage("Too many tries. Wait ${pinLock.secondsToWait()} seconds.", true)
+            }
+            PinLock.Result.WRONG -> {
+                lockPad.clear()
+                val wait = pinLock.secondsToWait()
+                lockPad.setMessage(if (wait > 0) "Too many tries. Wait $wait seconds." else "Wrong PIN. ${pinLock.triesLeft()} tries left.", true)
             }
         }
     }
 
     private fun buildLockView(): View {
-        lockMessage = textView("", 15f, Theme.Muted).apply { gravity = Gravity.CENTER }
+        lockPad = PinPad(this) { pin -> tryPin(pin) }
+        val screenWidth = resources.displayMetrics.widthPixels
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(dp(32), dp(32), dp(32), dp(32))
-            addView(textView("\uD83D\uDD12", 64f, Theme.Ink).apply { gravity = Gravity.CENTER })
-            addView(textView("Pocket Theater is locked", 24f, Theme.Ink, bold = true).apply { gravity = Gravity.CENTER }, lp(MATCH, WRAP, top = 12))
-            addView(lockMessage, lp(MATCH, WRAP, top = 8))
-            addView(actionButton("Unlock", filled = true) { askToUnlock() }, lp(MATCH, WRAP, top = 28))
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(28), dp(24), dp(28), dp(24))
+            addView(
+                ImageView(this@MainActivity).apply {
+                    setImageResource(R.drawable.logo_splash)
+                    adjustViewBounds = true
+                    contentDescription = "Pocket Theater"
+                },
+                lp((screenWidth * 0.4f).toInt(), WRAP)
+            )
+            addView(textView("Pocket Theater is locked", 22f, Theme.Ink, bold = true).apply { gravity = Gravity.CENTER }, lp(MATCH, WRAP, top = 4, bottom = 8))
+            addView(lockPad, lp(MATCH, WRAP))
+            addView(
+                textView("Forgot it? Clearing the app's data in Android settings removes the lock, and your accounts and folders with it.", 13f, Theme.Muted)
+                    .apply { gravity = Gravity.CENTER },
+                lp(MATCH, WRAP, top = 18)
+            )
         }
         return FrameLayout(this).apply {
             background = GradientDrawable().apply {
@@ -154,18 +179,8 @@ class MainActivity : Activity() {
             }
             isClickable = true // catches touches so nothing underneath can be used
             visibility = View.GONE
-            addView(column, FrameLayout.LayoutParams(MATCH, MATCH))
+            addView(ScrollView(this@MainActivity).apply { addView(column) }, FrameLayout.LayoutParams(MATCH, MATCH))
         }
-    }
-
-    override fun onPause() {
-        handler.removeCallbacks(ticker)
-        super.onPause()
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        if (locked || !screens[tab].onBack()) super.onBackPressed()
     }
 
     private fun buildShell(): View {
@@ -174,22 +189,27 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             setBackgroundColor(Theme.Surface)
         }
-        val tabs = listOf("\uD83D\uDCCA" to "Dashboard", "\uD83D\uDCC1" to "Folders", "\uD83D\uDC64" to "Profile")
-        tabs.forEachIndexed { index, (icon, name) ->
-            val iconView = textView(icon, 22f, Theme.Ink).apply { gravity = Gravity.CENTER }
+        val tabs = listOf(
+            Triple(R.drawable.ic_tab_dashboard, "Dashboard", 0),
+            Triple(R.drawable.ic_tab_folders, "Folders", 1),
+            Triple(R.drawable.ic_tab_profile, "Profile", 2),
+        )
+        tabs.forEach { (iconRes, name, index) ->
+            val iconView = ImageView(this).apply { setImageResource(iconRes) }
             val labelView = textView(name, 12f, Theme.Muted, bold = true).apply { gravity = Gravity.CENTER }
             tabIcons.add(iconView)
             tabLabels.add(labelView)
             val item = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
-                setPadding(0, dp(10), 0, dp(10))
+                setPadding(0, dp(8), 0, dp(8))
                 isClickable = true
                 setOnClickListener { select(index) }
-                addView(iconView, lp(WRAP, WRAP))
+                addView(iconView, lp(dp(24), dp(24)))
                 addView(labelView, lp(WRAP, WRAP, top = 2))
             }
-            bar.addView(item, lp(0, WRAP, 1f))
+            tabItems.add(item)
+            bar.addView(item, lp(0, WRAP, 1f, 8, 6, 8, 6))
         }
 
         val divider = View(this).apply { setBackgroundColor(Theme.Border) }
@@ -209,8 +229,12 @@ class MainActivity : Activity() {
         screens[index].refresh()
         for (i in tabIcons.indices) {
             val on = i == index
-            tabIcons[i].alpha = if (on) 1f else 0.5f
+            tabIcons[i].setColorFilter(if (on) Theme.Marquee else Theme.Muted)
             tabLabels[i].setTextColor(if (on) Theme.Marquee else Theme.Muted)
+            tabItems[i].background = if (on) GradientDrawable().apply {
+                cornerRadius = dp(16).toFloat()
+                setColor(0x22FFB547)
+            } else null
         }
     }
 

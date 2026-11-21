@@ -24,7 +24,7 @@ if ! echo "$BADGING" | grep -Eq "^(min)?[sS]dkVersion:'31'"; then
   fail "APK minimum Android version is not 12 (API 31)."
 fi
 
-for perm in INTERNET FOREGROUND_SERVICE FOREGROUND_SERVICE_SPECIAL_USE POST_NOTIFICATIONS USE_BIOMETRIC; do
+for perm in INTERNET FOREGROUND_SERVICE FOREGROUND_SERVICE_SPECIAL_USE POST_NOTIFICATIONS; do
   echo "$BADGING" | grep -q "uses-permission: name='android.permission.$perm'" || fail "Permission $perm is missing."
 done
 

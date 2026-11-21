@@ -17,13 +17,13 @@ class AppSettings(context: Context) {
         get() = prefs.getBoolean("notify_requests", true)
         set(value) { prefs.edit().putBoolean("notify_requests", value).apply() }
 
-    /** When on, opening the app asks for the phone's fingerprint, face or PIN first. */
-    var lockEnabled: Boolean
-        get() = prefs.getBoolean("lock_enabled", false)
-        set(value) { prefs.edit().putBoolean("lock_enabled", value).apply() }
-
-    /** How long the app may be out of sight before it locks again. 0 means every time. */
+    /** How long the app may be out of sight before the PIN is asked for again. 0 means every time. */
     var lockAfterSeconds: Int
         get() = prefs.getInt("lock_after_seconds", 60)
         set(value) { prefs.edit().putInt("lock_after_seconds", value).apply() }
+
+    /** When on, the app shows a blank picture in the recent-apps list and screenshots are blocked. */
+    var hideInRecents: Boolean
+        get() = prefs.getBoolean("hide_in_recents", false)
+        set(value) { prefs.edit().putBoolean("hide_in_recents", value).apply() }
 }

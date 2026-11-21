@@ -6,6 +6,8 @@ import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.pockettheater.ui.theme.Theme
@@ -84,4 +86,38 @@ fun Context.iconBadge(icon: String, tint: Int, sizeDp: Int = 40): TextView =
             setColor((tint and 0x00FFFFFF) or 0x33000000)
         }
         layoutParams = LinearLayout.LayoutParams(dp(sizeDp), dp(sizeDp))
+    }
+
+/** A rounded square holding a line icon from the drawable folder, tinted with the given colour. */
+fun Context.iconBadgeRes(drawable: Int, tint: Int, sizeDp: Int = 44): View =
+    FrameLayout(this).apply {
+        background = GradientDrawable().apply {
+            cornerRadius = dp(12).toFloat()
+            setColor((tint and 0x00FFFFFF) or 0x33000000)
+        }
+        addView(
+            ImageView(context).apply {
+                setImageResource(drawable)
+                setColorFilter(tint)
+            },
+            FrameLayout.LayoutParams(dp(sizeDp * 50 / 100), dp(sizeDp * 50 / 100), Gravity.CENTER)
+        )
+        layoutParams = LinearLayout.LayoutParams(dp(sizeDp), dp(sizeDp))
+    }
+
+/** A small rounded button for a row, such as Change or Turn off. */
+fun Context.pillButton(text: String, color: Int, onClick: () -> Unit): TextView =
+    TextView(this).apply {
+        this.text = text
+        textSize = 15f
+        gravity = Gravity.CENTER
+        setTypeface(typeface, Typeface.BOLD)
+        setTextColor(color)
+        setPadding(dp(16), dp(10), dp(16), dp(10))
+        background = GradientDrawable().apply {
+            cornerRadius = dp(12).toFloat()
+            setColor((color and 0x00FFFFFF) or 0x22000000)
+        }
+        isClickable = true
+        setOnClickListener { onClick() }
     }

@@ -9,22 +9,23 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import com.pockettheater.core.security.AppLock
+import com.pockettheater.R
+import com.pockettheater.core.security.PinLock
 import com.pockettheater.core.storage.UserStore
 import com.pockettheater.ui.components.MATCH
 import com.pockettheater.ui.components.WRAP
 import com.pockettheater.ui.components.card
 import com.pockettheater.ui.components.dp
-import com.pockettheater.ui.components.iconBadge
+import com.pockettheater.ui.components.iconBadgeRes
 import com.pockettheater.ui.components.lp
 import com.pockettheater.ui.components.textView
 import com.pockettheater.ui.theme.Theme
 
 /** Who you are on this phone, with Admin tools and Settings one tap away. */
-class ProfileScreen(private val activity: Activity, appLock: AppLock, onAddFolder: () -> Unit) : Screen {
+class ProfileScreen(private val activity: Activity, pinLock: PinLock, onAddFolder: () -> Unit) : Screen {
     private val users = UserStore(activity)
     private val admin = AdminToolsPage(activity, onAddFolder)
-    private val settings = SettingsPage(activity, appLock)
+    private val settings = SettingsPage(activity, pinLock)
     private val holder = FrameLayout(activity)
     private val waitingText = activity.textView("", 14f, Theme.Muted)
     private var page: Screen? = null
@@ -51,7 +52,7 @@ class ProfileScreen(private val activity: Activity, appLock: AppLock, onAddFolde
         val back = activity.textView("\u2190", 26f, Theme.Marquee, bold = true).apply {
             setPadding(activity.dp(8), 0, activity.dp(16), 0)
             isClickable = true
-            setOnClickListener { showHome() }
+            setOnClickListener { if (page?.onBack() != true) showHome() }
         }
         bar.addView(back)
         bar.addView(activity.textView(title, 24f, Theme.Ink, bold = true))
@@ -83,19 +84,19 @@ class ProfileScreen(private val activity: Activity, appLock: AppLock, onAddFolde
         me.addView(meRow)
         column.addView(me, activity.lp(MATCH, WRAP, top = 18))
 
-        column.addView(menuRow("\uD83D\uDEE0\uFE0F", Theme.Marquee, "Admin tools", waitingText) { open("Admin tools", admin) }, activity.lp(MATCH, WRAP, top = 16))
-        column.addView(menuRow("\u2699\uFE0F", Theme.Cyan, "Settings", null) { open("Settings", settings) }, activity.lp(MATCH, WRAP, top = 12))
+        column.addView(menuRow(R.drawable.ic_build, Theme.Marquee, "Admin tools", waitingText) { open("Admin tools", admin) }, activity.lp(MATCH, WRAP, top = 16))
+        column.addView(menuRow(R.drawable.ic_settings, Theme.Cyan, "Settings", null) { open("Settings", settings) }, activity.lp(MATCH, WRAP, top = 12))
 
         show(ScrollView(activity).apply { addView(column) })
         refreshHome()
     }
 
-    private fun menuRow(icon: String, tint: Int, title: String, subtitle: TextView?, onClick: () -> Unit): View {
+    private fun menuRow(icon: Int, tint: Int, title: String, subtitle: TextView?, onClick: () -> Unit): View {
         val row = activity.card(16)
         row.isClickable = true
         row.setOnClickListener { onClick() }
         val line = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        line.addView(activity.iconBadge(icon, tint, 44), activity.lp(activity.dp(44), activity.dp(44), right = 14))
+        line.addView(activity.iconBadgeRes(icon, tint, 44), activity.lp(activity.dp(44), activity.dp(44), right = 14))
         val texts = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
         texts.addView(activity.textView(title, 18f, Theme.Ink, bold = true))
         if (subtitle != null) texts.addView(subtitle)
@@ -126,8 +127,8 @@ class ProfileScreen(private val activity: Activity, appLock: AppLock, onAddFolde
     }
 
     override fun onBack(): Boolean {
-        if (page == null) return false
-        showHome()
+        val open = page ?: return false
+        if (!open.onBack()) showHome()
         return true
     }
 }
