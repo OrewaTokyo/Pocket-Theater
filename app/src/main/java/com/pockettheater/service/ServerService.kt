@@ -35,9 +35,18 @@ class ServerService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        showNotification()
+        try {
+            showNotification()
+        } catch (e: Exception) {
+            // Android sometimes refuses to let a closed app restart itself in the background.
+            lastError = "Android did not allow the theater to restart by itself. Open it again from the Dashboard."
+            stopSelf()
+            return START_NOT_STICKY
+        }
         startServer()
-        return START_NOT_STICKY
+        // If Android closes the app while the theater is open, ask it to start the service again.
+        // Closing the theater yourself never restarts it.
+        return if (AppSettings(this).autoRestart) START_STICKY else START_NOT_STICKY
     }
 
     override fun onDestroy() {

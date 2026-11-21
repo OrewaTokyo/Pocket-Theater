@@ -32,6 +32,7 @@ import com.pockettheater.ui.components.pillButton
 import com.pockettheater.ui.components.sectionLabel
 import com.pockettheater.ui.components.textView
 import com.pockettheater.ui.theme.Theme
+import com.pockettheater.util.BatteryHelper
 
 /** Settings sorted into categories, with a search box that finds any single setting. */
 class SettingsPage(private val activity: Activity, private val pinLock: PinLock) : Screen {
@@ -51,6 +52,7 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
     private val users = UserStore(activity)
     private val holder = FrameLayout(activity)
     private var openId: String? = null
+    private var shownBatteryOk: Boolean? = null
 
     private val categories = listOf(
         Category("privacy", R.drawable.ic_shield, Theme.Cyan, "Privacy and data", "PIN lock and what is stored",
@@ -59,6 +61,8 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
             { if (settings.signupsOpen) "Open" else "Closed" }, { c -> buildSignups(c) }),
         Category("notifications", R.drawable.ic_bell, Theme.Marquee, "Notifications", "Sign-up request alerts",
             { if (settings.notifyRequests) "On" else "Off" }, { c -> buildNotifications(c) }),
+        Category("connection", R.drawable.ic_wifi, Theme.Cyan, "Connection", "Keep the theater running",
+            { if (BatteryHelper.isUnrestricted(activity)) "Allowed" else "Limited" }, { c -> buildConnection(c) }),
         Category("data", R.drawable.ic_storage, Theme.Neon, "Data and counters", "Dashboard totals",
             { "" }, { c -> buildData(c) }),
         Category("about", R.drawable.ic_info, Theme.Muted, "About", "Version and website port",
@@ -75,6 +79,9 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
         Entry("Allow new sign-up requests", "register registration join access people close open", "signups"),
         Entry("Sign everyone out", "log out sessions password", "signups"),
         Entry("Notify me about requests", "alerts notification sign-up", "notifications"),
+        Entry("Run without battery limits", "battery optimisation optimization restricted background closed kill awake", "connection"),
+        Entry("Restart automatically", "restart kill closed sticky reopen", "connection"),
+        Entry("Hotspot and Wi-Fi tips", "hotspot wifi band 2.4 5 ghz timer charging autostart connection drops", "connection"),
         Entry("Reset data counters", "totals traffic dashboard zero clear data sent requests", "data"),
         Entry("Version", "about build app", "about"),
         Entry("Website port", "port address 8080 link", "about"),
@@ -116,7 +123,7 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
 
         val groups = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
         group(groups, "Security", listOf("privacy", "signups"))
-        group(groups, "Theater", listOf("notifications", "data"))
+        group(groups, "Theater", listOf("notifications", "connection", "data"))
         group(groups, "About", listOf("about"))
         val results = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
         column.addView(groups)
@@ -257,6 +264,44 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
                     row(
                         "Notify me about requests", "A phone notification when someone asks to join. Requests still wait in Admin tools.",
                         switchView(settings.notifyRequests) { settings.notifyRequests = it }
+                    )
+                )
+            )
+        )
+    }
+
+    private fun buildConnection(column: LinearLayout) {
+        val unrestricted = BatteryHelper.isUnrestricted(activity)
+        shownBatteryOk = unrestricted
+        column.addView(activity.sectionLabel("Staying awake"), activity.lp(WRAP, WRAP, top = 22, bottom = 10))
+        column.addView(
+            rowsCard(
+                listOf(
+                    row(
+                        "Run without battery limits",
+                        "Stops Android from closing the theater to save battery. Recommended while people are watching.",
+                        if (unrestricted) valueText("Allowed", Theme.Neon)
+                        else activity.pillButton("Allow", Theme.Marquee) { BatteryHelper.ask(activity) }
+                    ),
+                    row(
+                        "Restart automatically",
+                        "If Android closes the app while the theater is open, it opens the theater again by itself. Applies the next time you open the theater.",
+                        switchView(settings.autoRestart) { settings.autoRestart = it }
+                    )
+                )
+            )
+        )
+        column.addView(activity.sectionLabel("Hotspot and Wi-Fi tips"), activity.lp(WRAP, WRAP, top = 22, bottom = 10))
+        column.addView(
+            rowsCard(
+                listOf(
+                    row("Keep the hotspot on", "In your phone's hotspot settings, turn off the option that switches the hotspot off when no device is connected.", null),
+                    row("Pick the band", "2.4 GHz reaches further and drops less. 5 GHz is faster but needs the laptop close to the phone.", null),
+                    row("Keep it charging", "Streaming over a hotspot drains the battery fast. Plug the phone in for long sessions.", null),
+                    row(
+                        "Phone-specific switches",
+                        "Some phones (Xiaomi, Oppo, Vivo, Samsung) also have Autostart or Background activity switches in the app's settings. Turn them on.",
+                        activity.pillButton("App settings", Theme.Ink) { BatteryHelper.openAppSettings(activity) }
                     )
                 )
             )
@@ -480,7 +525,13 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
         return switch
     }
 
-    override fun refresh() = Unit
+    override fun refresh() {
+        // After the person comes back from Android's battery question, show the new answer.
+        if (openId == "connection") {
+            val now = BatteryHelper.isUnrestricted(activity)
+            if (shownBatteryOk != null && shownBatteryOk != now) showCategory("connection")
+        }
+    }
 
     override fun onBack(): Boolean {
         if (openId == null) return false

@@ -14,3 +14,5 @@ Not protected yet:
 - Anyone who can open the phone app is the admin. Turn on the PIN lock in Profile > Settings > Privacy and data (4 to 6 digits, stored scrambled, 30 seconds or more of waiting after every 5 wrong tries). It stops someone who picks up your phone. It does not encrypt the app's data, so it cannot stop someone who copies the phone's storage. The lock only covers the phone app. The website keeps running while the app is locked.
 
 Planned: HTTPS with a certificate made on the phone, QR pairing.
+
+See also [SECURITY.md](../../SECURITY.md) and [PRIVACY.md](../../PRIVACY.md).

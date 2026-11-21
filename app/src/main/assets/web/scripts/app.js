@@ -20,6 +20,12 @@ function route() {
 window.addEventListener("hashchange", route);
 route();
 
+// Watch the connection. When it returns, a page that failed to load tries again.
+PT.connection.onBack(() => {
+  if (document.querySelector("#main .error")) route();
+});
+PT.connection.start();
+
 // Show who is signed in, top right.
 PT.api.me().then((me) => {
   const who = document.getElementById("who");

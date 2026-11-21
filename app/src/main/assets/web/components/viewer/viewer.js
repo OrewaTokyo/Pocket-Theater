@@ -11,6 +11,8 @@ PT.viewer = {
   },
 
   close() {
+    if (this.stopGuard) this.stopGuard();
+    this.stopGuard = null;
     const root = document.getElementById("viewer");
     root.replaceChildren();
     root.hidden = true;
@@ -24,7 +26,50 @@ PT.viewer = {
     this.render();
   },
 
+  // If the connection drops while a video or image is open, load it again when it returns and carry on from the same spot.
+  guard(media, url, isImage) {
+    let resumeAt = 0;
+    let wasPlaying = true;
+    let attempts = 0;
+
+    const reload = () => {
+      if (!document.body.contains(media)) return;
+      const at = resumeAt;
+      const play = wasPlaying;
+      media.src = url;
+      if (isImage) return;
+      media.load();
+      media.addEventListener("loadedmetadata", () => {
+        if (at > 0) media.currentTime = at;
+        if (play) media.play().catch(() => {});
+      }, { once: true });
+    };
+
+    if (!isImage) {
+      media.addEventListener("timeupdate", () => { if (!media.paused) resumeAt = media.currentTime; });
+      media.addEventListener("playing", () => { attempts = 0; });
+      media.addEventListener("stalled", () => { wasPlaying = !media.paused; });
+    }
+    media.addEventListener("error", () => {
+      wasPlaying = !isImage && !media.paused;
+      if (attempts < 5) {
+        attempts += 1;
+        setTimeout(reload, 2000 * attempts);
+      }
+    });
+
+    return PT.connection.onBack(() => {
+      const broken = isImage ? !media.complete || media.naturalWidth === 0 : media.error || media.readyState < 3;
+      if (broken) {
+        attempts = 0;
+        reload();
+      }
+    });
+  },
+
   render() {
+    if (this.stopGuard) this.stopGuard();
+    this.stopGuard = null;
     const el = PT.util.el;
     const item = this.items[this.index];
     const stage = el("div", { class: "viewer-stage" });
@@ -33,8 +78,11 @@ PT.viewer = {
       const media = el(item.kind, { src: item.url, controls: "", autoplay: "" });
       media.addEventListener("ended", () => this.step(1));
       stage.append(media);
+      this.stopGuard = this.guard(media, item.url, false);
     } else if (item.kind === "image") {
-      stage.append(el("img", { src: item.url, alt: item.name }));
+      const img = el("img", { src: item.url, alt: item.name });
+      stage.append(img);
+      this.stopGuard = this.guard(img, item.url, true);
     } else if (item.kind === "pdf") {
       stage.append(el("iframe", { src: item.url, title: item.name }));
     } else {

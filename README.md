@@ -36,3 +36,8 @@ Early development 🚧 (v0.1)
 
 ## License
 Apache-2.0
+
+## Privacy and security
+
+- [PRIVACY.md](PRIVACY.md): what the app stores, what it can see and what leaves the phone
+- [SECURITY.md](SECURITY.md): how to report a problem, what is protected and the known limits

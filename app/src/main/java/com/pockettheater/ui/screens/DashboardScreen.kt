@@ -26,6 +26,7 @@ import com.pockettheater.ui.components.lp
 import com.pockettheater.ui.components.sectionLabel
 import com.pockettheater.ui.components.textView
 import com.pockettheater.ui.theme.Theme
+import com.pockettheater.util.BatteryHelper
 import com.pockettheater.util.DeviceStats
 import com.pockettheater.util.Format
 import com.pockettheater.util.NetworkUtil
@@ -40,6 +41,9 @@ class DashboardScreen(private val activity: Activity) : Screen {
     private val statusText = activity.textView("", 13f, Theme.Muted, bold = true).apply { letterSpacing = 0.12f }
     private val linkView = activity.textView("", 20f, Theme.Marquee, bold = true).apply { setTextIsSelectable(true) }
     private val errorView = activity.textView("", 14f, Theme.Red)
+    private val linkHint = activity.textView("Website link", 13f, Theme.Muted)
+    private val otherAddresses = activity.textView("", 13f, Theme.Muted).apply { setTextIsSelectable(true) }
+    private val batteryTip = activity.card(16)
     private val toggle = activity.actionButton("Open theater", filled = true) {
         val intent = Intent(activity, ServerService::class.java)
         if (ServerService.isRunning) activity.stopService(intent) else activity.startForegroundService(intent)
@@ -86,8 +90,9 @@ class DashboardScreen(private val activity: Activity) : Screen {
 
         // Website link and the open/close button
         val hero = activity.card(18)
-        hero.addView(activity.textView("Website link (open it on your laptop, same Wi-Fi)", 13f, Theme.Muted))
+        hero.addView(linkHint)
         hero.addView(linkView, activity.lp(MATCH, WRAP, top = 4))
+        hero.addView(otherAddresses, activity.lp(MATCH, WRAP, top = 4))
         hero.addView(errorView)
         val buttons = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL }
         buttons.addView(
@@ -97,6 +102,19 @@ class DashboardScreen(private val activity: Activity) : Screen {
         buttons.addView(toggle, activity.lp(0, WRAP, 1f, left = 6))
         hero.addView(buttons, activity.lp(MATCH, WRAP, top = 14))
         column.addView(hero, activity.lp(MATCH, WRAP, top = 18))
+
+        // Shown only while the theater is open and Android may still close it to save battery
+        batteryTip.addView(activity.textView("Keep the theater awake", 16f, Theme.Marquee, bold = true))
+        batteryTip.addView(
+            activity.textView("Android may close the theater to save battery, which drops everyone's connection.", 14f, Theme.Muted),
+            activity.lp(MATCH, WRAP, top = 2)
+        )
+        batteryTip.addView(
+            activity.actionButton("Allow no battery limits", filled = false) { BatteryHelper.ask(activity) },
+            activity.lp(MATCH, WRAP, top = 10)
+        )
+        batteryTip.visibility = View.GONE
+        column.addView(batteryTip, activity.lp(MATCH, WRAP, top = 14))
 
         // Four numbers
         column.addView(
@@ -174,14 +192,25 @@ class DashboardScreen(private val activity: Activity) : Screen {
         statusText.setTextColor(if (open) Theme.Neon else Theme.Muted)
         (statusDot.background as GradientDrawable).setColor(if (open) Theme.Neon else Theme.Muted)
 
-        val ip = NetworkUtil.localIpv4()
-        val address = if (open && ip != null) "http://$ip:${ServerService.PORT}" else null
+        val addresses = NetworkUtil.addresses()
+        val best = addresses.firstOrNull()
+        val address = if (open && best != null) "http://${best.ip}:${ServerService.PORT}" else null
         link = address
+        linkHint.text = when {
+            !open || best == null -> "Website link"
+            best.kind == "Hotspot" -> "Website link (phone hotspot): open it on a device joined to this hotspot"
+            else -> "Website link (${best.kind}): open it on a device on the same network"
+        }
         linkView.text = when {
             !open -> "Open the theater to get your link"
-            address == null -> "No Wi-Fi found. Connect to Wi-Fi or turn on the hotspot."
+            address == null -> "No Wi-Fi or hotspot found. Connect to Wi-Fi or turn on the hotspot."
             else -> address
         }
+        val others = if (open) addresses.drop(1) else emptyList()
+        otherAddresses.text = if (others.isEmpty()) "" else
+            "Also reachable at: " + others.joinToString("   ") { "http://${it.ip}:${ServerService.PORT} (${it.kind})" }
+        otherAddresses.visibility = if (others.isEmpty()) View.GONE else View.VISIBLE
+        batteryTip.visibility = if (open && !BatteryHelper.isUnrestricted(activity)) View.VISIBLE else View.GONE
         errorView.text = if (!open && error != null) "Could not open: $error" else ""
         errorView.visibility = if (errorView.text.isEmpty()) View.GONE else View.VISIBLE
         toggle.text = if (open) "Close theater" else "Open theater"

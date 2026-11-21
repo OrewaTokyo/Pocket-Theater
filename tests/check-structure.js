@@ -22,7 +22,7 @@ function walk(rel) {
 // 1. Top level: only known folders and files.
 const ROOT_DIRS = new Set([".git", ".github", "app", "docs", "tests", "tools"]);
 const ROOT_FILES = new Set([
-  ".gitignore", "README.md", "LICENSE", "build.gradle.kts", "settings.gradle.kts", "gradle.properties", "site.zip",
+  ".gitignore", "README.md", "PRIVACY.md", "SECURITY.md", "LICENSE", "build.gradle.kts", "settings.gradle.kts", "gradle.properties", "site.zip",
 ]);
 for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
   if (entry.isDirectory() && !ROOT_DIRS.has(entry.name)) bad('Folder "' + entry.name + '" is not part of the layout. Put it under an existing class folder.');

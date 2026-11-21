@@ -26,4 +26,9 @@ class AppSettings(context: Context) {
     var hideInRecents: Boolean
         get() = prefs.getBoolean("hide_in_recents", false)
         set(value) { prefs.edit().putBoolean("hide_in_recents", value).apply() }
+
+    /** When on, the theater opens itself again if Android closes the app while it was open. */
+    var autoRestart: Boolean
+        get() = prefs.getBoolean("auto_restart", true)
+        set(value) { prefs.edit().putBoolean("auto_restart", value).apply() }
 }

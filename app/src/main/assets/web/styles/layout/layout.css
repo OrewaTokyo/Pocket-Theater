@@ -117,3 +117,12 @@ body.noscroll { overflow: hidden; }
 .form-msg.ok { color: var(--cyan); }
 .ghost { padding: 10px 18px; border-radius: 10px; border: 1px solid var(--marquee-dim); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; }
 .ghost:hover { background: var(--surface-hi); }
+
+/* Banner shown while the connection to the phone is down. */
+.conn {
+  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 100;
+  padding: 10px 20px; border-radius: 999px; font-weight: 700; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+.conn[hidden] { display: none; }
+.conn.bad { background: #4a1826; color: #ffd9e0; border: 1px solid #ff5c7a; }
+.conn.ok { background: #11382a; color: #cfffe3; border: 1px solid #5cff9d; }
