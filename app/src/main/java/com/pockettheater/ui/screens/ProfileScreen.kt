@@ -15,6 +15,7 @@ import com.pockettheater.core.storage.UserStore
 import com.pockettheater.ui.components.MATCH
 import com.pockettheater.ui.components.WRAP
 import com.pockettheater.ui.components.card
+import com.pockettheater.ui.components.detach
 import com.pockettheater.ui.components.dp
 import com.pockettheater.ui.components.iconBadgeRes
 import com.pockettheater.ui.components.lp
@@ -99,7 +100,7 @@ class ProfileScreen(private val activity: Activity, pinLock: PinLock, onAddFolde
         line.addView(activity.iconBadgeRes(icon, tint, 44), activity.lp(activity.dp(44), activity.dp(44), right = 14))
         val texts = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
         texts.addView(activity.textView(title, 18f, Theme.Ink, bold = true))
-        if (subtitle != null) texts.addView(subtitle)
+        if (subtitle != null) texts.addView(subtitle.detach()) // the same text is reused each time the home page is drawn
         line.addView(texts, activity.lp(0, WRAP, 1f))
         line.addView(activity.textView("\u203A", 28f, Theme.Muted))
         row.addView(line)

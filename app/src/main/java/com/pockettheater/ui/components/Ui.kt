@@ -121,3 +121,9 @@ fun Context.pillButton(text: String, color: Int, onClick: () -> Unit): TextView 
         isClickable = true
         setOnClickListener { onClick() }
     }
+
+/** Takes this view out of whatever it is in now. A view can only sit in one place, so call this before adding a view that was shown before. */
+fun <T : View> T.detach(): T {
+    (parent as? ViewGroup)?.removeView(this)
+    return this
+}

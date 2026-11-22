@@ -36,6 +36,7 @@ import com.pockettheater.ui.components.Markdown
 import com.pockettheater.ui.components.PinPad
 import com.pockettheater.ui.components.WRAP
 import com.pockettheater.ui.components.card
+import com.pockettheater.ui.components.detach
 import com.pockettheater.ui.components.dp
 import com.pockettheater.ui.components.iconBadgeRes
 import com.pockettheater.ui.components.lp
@@ -298,7 +299,7 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
             )
         )
         column.addView(activity.sectionLabel("Devices on the website"), activity.lp(WRAP, WRAP, top = 22, bottom = 10))
-        column.addView(deviceBox)
+        column.addView(deviceBox.detach()) // reused each time this page is drawn
         rebuildDevices()
     }
 
