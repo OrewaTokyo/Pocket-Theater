@@ -2,6 +2,9 @@ package com.pockettheater.ui.screens
 
 import android.animation.ValueAnimator
 import android.app.Activity
+import android.app.AlertDialog
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -14,10 +17,14 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
+import android.widget.Toast
 import com.pockettheater.R
 import com.pockettheater.ui.components.dp
 import com.pockettheater.ui.components.textView
 import com.pockettheater.ui.theme.Theme
+import com.pockettheater.util.CrashLog
 
 /** The opening screen: the Pocket Theater logo on a purple glow with a loading bar, then the app. */
 class SplashActivity : Activity() {
@@ -85,7 +92,35 @@ class SplashActivity : Activity() {
             }
             start()
         }
-        handler.postDelayed(openApp, LOADING_MS + 150)
+        val report = CrashLog.pending(this)
+        if (report == null) handler.postDelayed(openApp, LOADING_MS + 150) else showReport(report)
+    }
+
+    /** The app closed on its own last time. Offer the report so it can be copied and sent, then carry on. */
+    private fun showReport(report: String) {
+        val text = TextView(this).apply {
+            this.text = report
+            textSize = 11f
+            typeface = android.graphics.Typeface.MONOSPACE
+            setTextIsSelectable(true)
+            setPadding(dp(20), dp(8), dp(20), dp(8))
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Pocket Theater had a problem")
+            .setMessage("It closed unexpectedly last time. Copy this report and send it so the problem can be fixed.")
+            .setView(ScrollView(this).apply { addView(text) })
+            .setPositiveButton("Copy and continue") { _, _ ->
+                getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Problem report", report))
+                Toast.makeText(this, "Report copied", Toast.LENGTH_SHORT).show()
+                CrashLog.clear(this)
+                handler.postDelayed(openApp, 300)
+            }
+            .setNegativeButton("Continue") { _, _ ->
+                CrashLog.clear(this)
+                handler.postDelayed(openApp, 300)
+            }
+            .setCancelable(false)
+            .show()
     }
 
     private fun pill(color: Int) = GradientDrawable().apply {

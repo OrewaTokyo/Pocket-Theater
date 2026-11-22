@@ -33,6 +33,7 @@ import com.pockettheater.ui.components.dp
 import com.pockettheater.ui.components.lp
 import com.pockettheater.ui.components.textView
 import com.pockettheater.ui.theme.Theme
+import com.pockettheater.util.CrashLog
 
 /** The shell: the three pages (Dashboard, Folders, Profile) and the tab bar along the bottom. */
 class MainActivity : Activity() {
@@ -54,7 +55,12 @@ class MainActivity : Activity() {
     private val handler = Handler(Looper.getMainLooper())
     private val ticker = object : Runnable {
         override fun run() {
-            screens[tab].refresh()
+            // One failing refresh must never close the app, so it is recorded and the loop carries on.
+            try {
+                screens[tab].refresh()
+            } catch (e: Exception) {
+                CrashLog.record(this@MainActivity, "refreshing " + screens[tab].javaClass.simpleName, e)
+            }
             handler.postDelayed(this, 1000)
         }
     }
@@ -226,7 +232,11 @@ class MainActivity : Activity() {
         tab = index
         content.removeAllViews()
         content.addView(screens[index].view, FrameLayout.LayoutParams(MATCH, MATCH))
-        screens[index].refresh()
+        try {
+            screens[index].refresh()
+        } catch (e: Exception) {
+            CrashLog.record(this, "opening " + screens[index].javaClass.simpleName, e)
+        }
         for (i in tabIcons.indices) {
             val on = i == index
             tabIcons[i].setColorFilter(if (on) Theme.Marquee else Theme.Muted)
@@ -251,7 +261,12 @@ class MainActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != REQUEST_FOLDER || resultCode != RESULT_OK) return
         val uri = data?.data ?: return
-        contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        try {
+            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } catch (e: SecurityException) {
+            android.widget.Toast.makeText(this, "Android did not allow access to that folder. Pick it again.", android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
         val name = browser.displayName(uri)
         AlertDialog.Builder(this)
             .setTitle("What is in \"$name\"?")

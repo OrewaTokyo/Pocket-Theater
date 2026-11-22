@@ -24,6 +24,8 @@ import fi.iki.elonen.NanoHTTPD
 class ServerService : Service() {
     private var server: PocketServer? = null
     private var redirectServer: RedirectServer? = null
+    private val lifecycle = Any()
+    @Volatile private var wantRunning = false
     private lateinit var locks: WifiLockManager
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -35,7 +37,8 @@ class ServerService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
-            stopServer()
+            wantRunning = false
+            if (!isStarting) stopServer()
             stopSelf()
             return START_NOT_STICKY
         }
@@ -47,14 +50,27 @@ class ServerService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        startServer()
+        wantRunning = true
+        if (!isStarting && server == null) {
+            // Making the certificate and testing the secure connection can take a few seconds, so this must not block the screen.
+            isStarting = true
+            Thread({
+                try {
+                    synchronized(lifecycle) { if (wantRunning) startServer() }
+                } finally {
+                    isStarting = false
+                }
+                if (!wantRunning) stopServer() // told to stop while it was still starting
+            }, "pocket-theater-start").start()
+        }
         // If Android closes the app while the theater is open, ask it to start the service again.
         // Closing the theater yourself never restarts it.
         return if (AppSettings(this).autoRestart) START_STICKY else START_NOT_STICKY
     }
 
     override fun onDestroy() {
-        stopServer()
+        wantRunning = false
+        if (!isStarting) stopServer()
         super.onDestroy()
     }
 
@@ -113,16 +129,18 @@ class ServerService : Service() {
     }
 
     private fun stopServer() {
-        if (server != null) ServerStats.end()
-        server?.stop()
-        server = null
-        SessionStore.shared.clear() // closing the theater signs everyone out
-        redirectServer?.stop()
-        redirectServer = null
-        locks.release()
-        isRunning = false
-        isSecure = false
-        lastWarning = null
+        synchronized(lifecycle) {
+            if (server != null) ServerStats.end()
+            server?.stop()
+            server = null
+            SessionStore.shared.clear() // closing the theater signs everyone out
+            redirectServer?.stop()
+            redirectServer = null
+            locks.release()
+            isRunning = false
+            isSecure = false
+            lastWarning = null
+        }
     }
 
     /** Tells the admin, even with the screen off, that someone is waiting to be approved. */
@@ -198,6 +216,7 @@ class ServerService : Service() {
         fun url(ip: String): String = if (isSecure) "https://$ip:$HTTPS_PORT" else "http://$ip:$PORT"
 
         @Volatile var isRunning = false
+        @Volatile var isStarting = false
         @Volatile var isSecure = false
         @Volatile var lastWarning: String? = null
         @Volatile var lastError: String? = null

@@ -499,7 +499,7 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
     private fun buildConnection(column: LinearLayout) {
         val unrestricted = BatteryHelper.isUnrestricted(activity)
         shownBatteryOk = unrestricted
-        val fingerprint = try { TlsIdentity.fingerprint() } catch (e: Exception) { null }
+        val fingerprint = try { TlsIdentity.fingerprintIfExists() } catch (e: Exception) { null }
         column.addView(activity.sectionLabel("Secure connection"), activity.lp(WRAP, WRAP, top = 22, bottom = 10))
         column.addView(
             rowsCard(
@@ -512,7 +512,7 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
                     row(
                         "Certificate fingerprint",
                         if (fingerprint != null) "Compare it with the one your browser shows before you continue.\n$fingerprint"
-                        else "The certificate could not be read on this phone.",
+                        else "The certificate is made the first time the theater opens with HTTPS on. Open the theater, then come back.",
                         if (fingerprint != null) activity.pillButton("Copy", Theme.Ink) { copyText("Fingerprint", fingerprint) } else null
                     ),
                     row(

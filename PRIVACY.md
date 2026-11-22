@@ -43,6 +43,10 @@ Files and pages are sent to the devices of approved people over your own Wi-Fi o
 | Notifications | For the "theater is open" notice and sign-up request alerts. You can turn the alerts off in Settings. |
 | Ignore battery optimisation | Only to ask Android to leave the theater alone. Android shows its own question and you decide. |
 
+## Problem reports
+
+If the app closes unexpectedly, or hits an error it recovers from, it saves a short report on the phone: the error text, the phone model and the Android version. It holds no files, usernames or passwords. The next time you open the app it offers to copy the report so you can send it yourself. It is never sent anywhere automatically.
+
 ## The QR scanner
 
 If you use the admin website, the phone scans a QR code with Google's code scanner, which is part of Google Play services. It runs on the phone, and Google's own terms and privacy notice apply to that component. If you type the code instead, nothing from Google is involved.

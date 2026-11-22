@@ -65,6 +65,13 @@ object TlsIdentity {
         MessageDigest.getInstance("SHA-256").digest(certificate().encoded)
             .joinToString(":") { "%02X".format(it.toInt() and 0xFF) }
 
+    /** The fingerprint if the certificate already exists. Never makes a new one, so it is quick and safe to call from a screen. */
+    fun fingerprintIfExists(): String? {
+        val cert = keyStore().getCertificate(ALIAS) as? X509Certificate ?: return null
+        return MessageDigest.getInstance("SHA-256").digest(cert.encoded)
+            .joinToString(":") { "%02X".format(it.toInt() and 0xFF) }
+    }
+
     /** Throws the old certificate away and makes a new one. Browsers will warn again. */
     @Synchronized
     fun renew() {

@@ -27,7 +27,13 @@ object NetworkUtil {
     }
 
     /** Every local address, best first. When the phone is sharing a hotspot, the hotspot address comes first. */
-    fun addresses(): List<Address> {
+    fun addresses(): List<Address> = try {
+        collect()
+    } catch (e: Exception) {
+        emptyList() // reading the network can fail while the hotspot is switching on or off
+    }
+
+    private fun collect(): List<Address> {
         val interfaces = try {
             NetworkInterface.getNetworkInterfaces()?.toList()
         } catch (e: Exception) {

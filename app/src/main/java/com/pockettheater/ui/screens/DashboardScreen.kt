@@ -51,7 +51,11 @@ class DashboardScreen(private val activity: Activity) : Screen {
     private val batteryTip = activity.card(16)
     private val toggle = activity.actionButton("Open theater", filled = true) {
         val intent = Intent(activity, ServerService::class.java)
-        if (ServerService.isRunning) activity.stopService(intent) else activity.startForegroundService(intent)
+        when {
+            ServerService.isStarting -> Unit // already on its way up
+            ServerService.isRunning -> activity.stopService(intent)
+            else -> activity.startForegroundService(intent)
+        }
     }
 
     private val wakeBig = bigNumber()
@@ -232,7 +236,8 @@ class DashboardScreen(private val activity: Activity) : Screen {
         val open = ServerService.isRunning
         val error = ServerService.lastError
 
-        statusText.text = if (open) "OPEN" else "CLOSED"
+        val starting = ServerService.isStarting
+        statusText.text = if (starting) "STARTING" else if (open) "OPEN" else "CLOSED"
         statusText.setTextColor(if (open) Theme.Neon else Theme.Muted)
         (statusDot.background as GradientDrawable).setColor(if (open) Theme.Neon else Theme.Muted)
 
@@ -259,7 +264,7 @@ class DashboardScreen(private val activity: Activity) : Screen {
         warningView.visibility = if (warningView.text.isEmpty()) View.GONE else View.VISIBLE
         errorView.text = if (!open && error != null) "Could not open: $error" else ""
         errorView.visibility = if (errorView.text.isEmpty()) View.GONE else View.VISIBLE
-        toggle.text = if (open) "Close theater" else "Open theater"
+        toggle.text = if (starting) "Starting\u2026" else if (open) "Close theater" else "Open theater"
 
         val stats = ServerStats.snapshot(activity)
         wakeBig.text = if (open) Format.duration(stats.awakeMs) else "Asleep"
