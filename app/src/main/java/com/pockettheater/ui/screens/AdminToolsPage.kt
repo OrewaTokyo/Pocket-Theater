@@ -187,7 +187,14 @@ class AdminToolsPage(private val activity: Activity, private val onAddFolder: ()
             names.addView(activity.textView(lib.name, 17f, Theme.Ink, bold = true))
             names.addView(activity.textView(Theme.categoryLabel(lib.category), 14f, Theme.categoryColor(lib.category), bold = true))
             row.addView(names, activity.lp(0, WRAP, 1f))
-            row.addView(activity.actionButton("Remove", filled = false) { removeFolder(lib.id, lib.uri) })
+            row.addView(activity.actionButton("Remove", filled = false) {
+                AlertDialog.Builder(activity)
+                    .setTitle("Stop sharing \"${lib.name}\"?")
+                    .setMessage("People will no longer see it on the website. Your files are not touched.")
+                    .setPositiveButton("Stop sharing") { _, _ -> removeFolder(lib.id, lib.uri) }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            })
             folderBox.addView(row)
         }
     }

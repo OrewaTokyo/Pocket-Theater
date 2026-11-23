@@ -36,6 +36,28 @@ class ServerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_RESTART) {
+            // Used after a new certificate is made: close the server and open it again so the new one is used.
+            try {
+                showNotification()
+            } catch (e: Exception) {
+                // The notification is already showing.
+            }
+            if (!isStarting) {
+                isStarting = true
+                Thread({
+                    try {
+                        synchronized(lifecycle) {
+                            stopServer()
+                            if (wantRunning) startServer()
+                        }
+                    } finally {
+                        isStarting = false
+                    }
+                }, "pocket-theater-restart").start()
+            }
+            return if (AppSettings(this).autoRestart) START_STICKY else START_NOT_STICKY
+        }
         if (intent?.action == ACTION_STOP) {
             wantRunning = false
             if (!isStarting) stopServer()
@@ -112,11 +134,17 @@ class ServerService : Service() {
     /** Starts the encrypted website, checks that a secure handshake really works, and redirects the old plain port to it. */
     private fun startSecure(): PocketServer {
         val s = PocketServer(applicationContext, HTTPS_PORT, true) { name -> announceRequest(name) }
-        s.makeSecure(TlsIdentity.socketFactory(), arrayOf("TLSv1.3", "TLSv1.2"))
-        s.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
-        if (!TlsIdentity.handshakeWorks(HTTPS_PORT)) {
-            s.stop()
-            throw IllegalStateException("the secure handshake test failed")
+        try {
+            s.makeSecure(TlsIdentity.socketFactory(), arrayOf("TLSv1.3", "TLSv1.2"))
+            s.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
+            if (!TlsIdentity.handshakeWorks(HTTPS_PORT)) throw IllegalStateException("the secure handshake test failed")
+        } catch (e: Exception) {
+            try {
+                s.stop() // never leave the secure port taken when falling back to plain HTTP
+            } catch (ignored: Exception) {
+                // Already stopped.
+            }
+            throw e
         }
         try {
             val redirect = RedirectServer(PORT, HTTPS_PORT)
@@ -207,6 +235,7 @@ class ServerService : Service() {
         const val PORT = 8080
         const val HTTPS_PORT = 8443
         const val ACTION_STOP = "com.pockettheater.STOP"
+        const val ACTION_RESTART = "com.pockettheater.RESTART"
         private const val CHANNEL_ID = "server_status"
         private const val REQUEST_CHANNEL_ID = "signup_requests"
         const val NOTIF_REQUEST = 2

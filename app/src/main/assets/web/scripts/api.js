@@ -11,6 +11,12 @@ PT.cats = [
 ];
 PT.categories = PT.cats.map((c) => c.id);
 
+// Passwords the phone refuses (the same list as on the phone).
+PT.commonPasswords = [
+  "password", "password1", "password123", "12345678", "123456789", "1234567890", "qwertyui", "qwerty123",
+  "11111111", "iloveyou", "letmein1", "welcome1", "admin123", "abc12345", "pockettheater", "00000000",
+];
+
 PT.api = {
   async json(url) {
     const res = await fetch(url);
@@ -85,9 +91,13 @@ PT.util = {
   usernameProblem(name) {
     return /^[a-z0-9_]{3,20}$/.test(name) ? null : "Username must be 3 to 20 letters, numbers or _ (lowercase).";
   },
-  passwordProblem(password) {
+  passwordProblem(password, username) {
     if (password.length < 8) return "Password needs at least 8 characters.";
     if (password.length > 64) return "Password can be at most 64 characters.";
+    if (PT.commonPasswords.includes(password.toLowerCase()) || new Set(password).size === 1) {
+      return "That password is too easy to guess. Pick another one.";
+    }
+    if (username && password.toLowerCase() === username) return "The password can't be your username.";
     return null;
   },
   // Look up a shelf by id. An id the site does not know still gets a sensible look.

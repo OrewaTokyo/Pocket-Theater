@@ -13,6 +13,7 @@ import com.pockettheater.core.storage.AppSettings
 import com.pockettheater.core.storage.DocumentBrowser
 import com.pockettheater.core.storage.ShareStore
 import com.pockettheater.core.storage.UserStore
+import com.pockettheater.util.CrashLog
 import com.pockettheater.util.DeviceLabel
 import com.pockettheater.util.DeviceStats
 import com.pockettheater.util.Format
@@ -28,8 +29,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * The server your laptop talks to. Folders are read-only. The only things anyone can write are sign-up requests
- * and their own password; approving people and resetting passwords can only be done on the phone.
+ * The server your laptop talks to. Shared folders are read-only. People can ask to join, sign in and change their own
+ * password. Approving people, resetting passwords and similar admin work happens on the phone, or on the admin website
+ * that the admin opens on one browser with a QR code scan and the admin password (see [SessionStore]).
  */
 class PocketServer(
     context: Context,
@@ -51,18 +53,26 @@ class PocketServer(
     override fun serve(session: IHTTPSession): Response {
         val response = try {
             route(session)
+        } catch (e: SecurityException) {
+            jsonError(Status.FORBIDDEN, "The phone no longer has access to that folder. Add it again in Admin tools.")
         } catch (e: Exception) {
+            CrashLog.record(appContext, "serving " + session.uri, e)
             jsonError(Status.INTERNAL_ERROR, "Something went wrong on the phone. Check that it still has access to the folder.")
         }
         response.addHeader("X-Content-Type-Options", "nosniff")
         response.addHeader("Referrer-Policy", "no-referrer")
-        response.addHeader("X-Frame-Options", "DENY")
+        response.addHeader("X-Frame-Options", "SAMEORIGIN") // the viewer shows PDFs in a frame from this same site
+        // Pages and scripts may only load things from this site. Shared files are left alone so PDFs and media still work.
+        if (session.uri != "/file") response.addHeader("Content-Security-Policy", PAGE_POLICY)
         return response
     }
 
     private fun route(session: IHTTPSession): Response {
-        ServerStats.request()
         val uri = session.uri
+        // The website's "are you there?" check and the later pieces of a video are not counted as requests.
+        val range = session.headers["range"]
+        val seekChunk = uri == "/file" && range != null && !range.startsWith("bytes=0-")
+        if (uri != "/api/me" && !seekChunk) ServerStats.request()
         if (session.method == Method.POST && uri.startsWith("/api/")) return post(session, uri)
         if (session.method != Method.GET && session.method != Method.HEAD) {
             return jsonError(Status.METHOD_NOT_ALLOWED, "Not allowed")
@@ -250,6 +260,7 @@ class PocketServer(
         val password = json.optString("password")
         if (!Auth.validUsername(name)) return jsonError(Status.BAD_REQUEST, Auth.USERNAME_RULE)
         Auth.passwordProblem(password)?.let { return jsonError(Status.BAD_REQUEST, it) }
+        if (password.lowercase() == name) return jsonError(Status.BAD_REQUEST, "The password can't be your username.")
         if (!json.optBoolean("agree", false)) {
             return jsonError(Status.BAD_REQUEST, "Please accept the Terms of Use and the Privacy Policy.")
         }
@@ -368,23 +379,45 @@ class PocketServer(
         val segments = PathGuard.segments(session.param("path")) ?: return jsonError(Status.BAD_REQUEST, "Invalid path")
         if (segments.isEmpty()) return jsonError(Status.BAD_REQUEST, "No file given")
         val tree = Uri.parse(lib.uri)
+        if (segments.any { it.startsWith(".") }) return jsonError(Status.NOT_FOUND, "File not found") // hidden files stay hidden
         val target = browser.resolve(tree, segments) ?: return jsonError(Status.NOT_FOUND, "File not found")
         if (target.isDir) return jsonError(Status.BAD_REQUEST, "That is a folder")
 
+        val ext = target.name.substringAfterLast('.', "").lowercase()
         var mime = target.mime
         if (mime.isBlank() || mime == "application/octet-stream") {
-            val ext = target.name.substringAfterLast('.', "").lowercase()
             mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "application/octet-stream"
         }
-        return RangeHandler.serve(
+
+        // A web page or script inside a shared folder must never run on this site, so it is only ever offered as a download.
+        val type = mime.substringBefore(';').trim().lowercase()
+        val runnable = type in RUNNABLE_TYPES || ext in RUNNABLE_EXTENSIONS
+        val picture = type == "image/svg+xml" || ext == "svg" || ext == "svgz"
+        if (runnable) mime = "application/octet-stream"
+
+        val response = RangeHandler.serve(
             appContext.contentResolver,
             browser.documentUri(tree, target.docId),
             mime,
             session.headers["range"]
         )
+        if (response.status == Status.NOT_FOUND) browser.forget(tree, segments)
+        if (runnable) response.addHeader("Content-Disposition", "attachment")
+        // An SVG may show as a picture, but opened on its own it gets no scripts and no outside content.
+        if (picture && !runnable) response.addHeader("Content-Security-Policy", "sandbox; default-src 'none'; style-src 'unsafe-inline'")
+        return response
     }
 
     companion object {
         private const val MAX_BODY = 4096
+        private const val PAGE_POLICY = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; " +
+            "frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'"
+        private val RUNNABLE_TYPES = setOf(
+            "text/html", "application/xhtml+xml", "text/xml", "application/xml", "text/javascript",
+            "application/javascript", "application/x-javascript", "multipart/related", "message/rfc822",
+        )
+        private val RUNNABLE_EXTENSIONS = setOf(
+            "html", "htm", "xhtml", "shtml", "xml", "xsl", "xslt", "js", "mjs", "hta", "mht", "mhtml",
+        )
     }
 }

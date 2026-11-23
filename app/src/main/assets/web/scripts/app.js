@@ -1,5 +1,7 @@
 function route() {
-  const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
+  const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map((part) => {
+    try { return decodeURIComponent(part); } catch (err) { return part; } // a damaged link must not blank the page
+  });
   const main = document.getElementById("main");
   PT.viewer.close();
   if (parts[0] !== "admin" && PT.pages.admin) PT.pages.admin.stop();

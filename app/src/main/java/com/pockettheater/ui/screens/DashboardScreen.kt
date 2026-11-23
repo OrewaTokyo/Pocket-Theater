@@ -6,6 +6,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
 import android.graphics.drawable.GradientDrawable
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.View
 import android.widget.ImageView
@@ -40,6 +41,10 @@ class DashboardScreen(private val activity: Activity) : Screen {
     private val users = UserStore(activity)
     private val device = DeviceStats(activity)
     private var link: String? = null
+    private var addressesAt = 0L
+    private var cachedAddresses: List<NetworkUtil.Address> = emptyList()
+    private var batteryCheckedAt = 0L
+    private var batteryUnrestricted = true
 
     private val statusDot = View(activity)
     private val statusText = activity.textView("", 13f, Theme.Muted, bold = true).apply { letterSpacing = 0.12f }
@@ -206,7 +211,7 @@ class DashboardScreen(private val activity: Activity) : Screen {
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(activity.dp(20), activity.dp(8), activity.dp(20), activity.dp(8))
         }
-        body.addView(ImageView(activity).apply { setImageBitmap(picture) }, activity.lp(picture.width, picture.height))
+        body.addView(ImageView(activity).apply { setImageBitmap(picture); contentDescription = "QR code for the website link" }, activity.lp(picture.width, picture.height))
         body.addView(
             activity.textView(address, 16f, Theme.Marquee, bold = true).apply { gravity = Gravity.CENTER; setTextIsSelectable(true) },
             activity.lp(MATCH, WRAP, top = 12)
@@ -241,7 +246,16 @@ class DashboardScreen(private val activity: Activity) : Screen {
         statusText.setTextColor(if (open) Theme.Neon else Theme.Muted)
         (statusDot.background as GradientDrawable).setColor(if (open) Theme.Neon else Theme.Muted)
 
-        val addresses = NetworkUtil.addresses()
+        val now = SystemClock.elapsedRealtime()
+        if (now - addressesAt > 4_000L) {
+            cachedAddresses = NetworkUtil.addresses()
+            addressesAt = now
+        }
+        if (now - batteryCheckedAt > 4_000L) {
+            batteryUnrestricted = BatteryHelper.isUnrestricted(activity)
+            batteryCheckedAt = now
+        }
+        val addresses = cachedAddresses
         val best = addresses.firstOrNull()
         val address = if (open && best != null) ServerService.url(best.ip) else null
         link = address
@@ -259,7 +273,7 @@ class DashboardScreen(private val activity: Activity) : Screen {
         otherAddresses.text = if (others.isEmpty()) "" else
             "Also reachable at: " + others.joinToString("   ") { ServerService.url(it.ip) + " (${it.kind})" }
         otherAddresses.visibility = if (others.isEmpty()) View.GONE else View.VISIBLE
-        batteryTip.visibility = if (open && !BatteryHelper.isUnrestricted(activity)) View.VISIBLE else View.GONE
+        batteryTip.visibility = if (open && !batteryUnrestricted) View.VISIBLE else View.GONE
         warningView.text = if (open) ServerService.lastWarning.orEmpty() else ""
         warningView.visibility = if (warningView.text.isEmpty()) View.GONE else View.VISIBLE
         errorView.text = if (!open && error != null) "Could not open: $error" else ""

@@ -10,7 +10,25 @@ PT.viewer = {
     document.body.classList.add("noscroll");
   },
 
+  // Stops any video or audio, so nothing keeps playing out of sight.
+  stopMedia() {
+    document.querySelectorAll("#viewer video, #viewer audio").forEach((m) => {
+      try { m.pause(); m.removeAttribute("src"); m.load(); } catch (err) { /* already gone */ }
+    });
+  },
+
+  // Shown instead of a black player when the browser cannot play the file at all.
+  unsupported(media) {
+    const item = this.items[this.index];
+    const el = PT.util.el;
+    media.replaceWith(el("div", { class: "unsupported" }, [
+      el("p", { text: "Your browser can't play \u201C" + item.name + "\u201D. Download it and open it in a player such as VLC." }),
+      el("a", { href: item.url, download: item.name, text: "Download" }),
+    ]));
+  },
+
   close() {
+    this.stopMedia();
     if (this.stopGuard) this.stopGuard();
     this.stopGuard = null;
     const root = document.getElementById("viewer");
@@ -52,6 +70,12 @@ PT.viewer = {
     }
     media.addEventListener("error", () => {
       wasPlaying = !isImage && !media.paused;
+      const code = media.error ? media.error.code : 0;
+      // 3 = could not decode, 4 = format not supported: trying again would only fail again.
+      if (!isImage && (code === 3 || code === 4)) {
+        this.unsupported(media);
+        return;
+      }
       if (attempts < 5) {
         attempts += 1;
         setTimeout(reload, 2000 * attempts);
@@ -68,6 +92,7 @@ PT.viewer = {
   },
 
   render() {
+    this.stopMedia();
     if (this.stopGuard) this.stopGuard();
     this.stopGuard = null;
     const el = PT.util.el;

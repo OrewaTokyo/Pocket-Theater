@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.Intent
 import android.graphics.drawable.GradientDrawable
 import android.text.Editable
 import android.text.InputType
@@ -63,6 +64,8 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
     private val settings = AppSettings(activity)
     private val users = UserStore(activity)
     private val adminPassword = AdminPassword(activity)
+    private val pinDialogs = PinDialogs(activity, pinLock) { showCategory("privacy") }
+    private val pairing = AdminPairing(activity, adminPassword, settings, { showCategory("admin") }, { rebuildDevices() })
     private val deviceBox = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
     private var deviceSignature = ""
     private val holder = FrameLayout(activity)
@@ -244,10 +247,10 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
         if (pinLock.isSet()) {
             rows += row("PIN lock", lockText, valueText("On", Theme.Neon))
             rows += row("Ask for the PIN", "How long you can be away before the PIN is needed again.", dropdown(delayLabel()) { chooseDelay() })
-            rows += row("Change PIN", "You enter the current PIN first.", activity.pillButton("Change", Theme.Ink) { changePin() })
-            rows += row("Turn off PIN lock", "You enter the current PIN first.", activity.pillButton("Turn off", Theme.Red) { turnOffPin() })
+            rows += row("Change PIN", "You enter the current PIN first.", activity.pillButton("Change", Theme.Ink) { pinDialogs.change() })
+            rows += row("Turn off PIN lock", "You enter the current PIN first.", activity.pillButton("Turn off", Theme.Red) { pinDialogs.turnOff() })
         } else {
-            rows += row("PIN lock", lockText, activity.pillButton("Turn on", Theme.Marquee) { choosePin() })
+            rows += row("PIN lock", lockText, activity.pillButton("Turn on", Theme.Marquee) { pinDialogs.choose() })
         }
         rows += row(
             "Hide the app in recent apps", "Shows a blank preview there and blocks screenshots.",
@@ -292,7 +295,7 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
                         if (adminPassword.isSet()) "Asked on this phone every time you open the admin website on a device."
                         else "Not set yet. You need one before you can allow the admin website.",
                         activity.pillButton(if (adminPassword.isSet()) "Change" else "Set", Theme.Marquee) {
-                            if (adminPassword.isSet()) changeAdminPassword() else createAdminPassword()
+                            if (adminPassword.isSet()) pairing.changePassword() else pairing.createPassword()
                         }
                     )
                 )
@@ -323,7 +326,7 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
                     if (d.admin) activity.pillButton("End admin", Theme.Red) {
                         SessionStore.shared.revokeAdmin(d.id)
                         rebuildDevices()
-                    } else activity.pillButton("Show QR", Theme.Marquee) { startPairing(d) }
+                    } else activity.pillButton("Show QR", Theme.Marquee) { pairing.start(d) }
                 )
             }
         }
@@ -340,122 +343,6 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
             }
         }
         showCategory("admin")
-    }
-
-    /** A box that asks for one line of text. */
-    private fun askText(title: String, message: String, secret: Boolean, onOk: (String) -> Unit) {
-        val input = EditText(activity).apply {
-            inputType = if (secret) InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-            else InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
-            setSingleLine(true)
-            setTextColor(Theme.Ink)
-        }
-        val frame = FrameLayout(activity).apply {
-            setPadding(activity.dp(20), activity.dp(8), activity.dp(20), 0)
-            addView(input)
-        }
-        AlertDialog.Builder(activity).setTitle(title).setMessage(message).setView(frame)
-            .setPositiveButton("OK") { _, _ -> onOk(input.text.toString()) }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
-    private fun createAdminPassword() {
-        askText("Admin password", "Choose a password of 8 to 64 characters. You type it on this phone, never on the website.", true) { first ->
-            val problem = Auth.passwordProblem(first)
-            if (problem != null) {
-                toast(problem)
-            } else {
-                askText("Repeat the password", "Type it once more.", true) { again ->
-                    if (again == first) {
-                        adminPassword.set(first)
-                        toast("Admin password saved")
-                    } else {
-                        toast("The two passwords are not the same.")
-                    }
-                    showCategory("admin")
-                }
-            }
-        }
-    }
-
-    private fun changeAdminPassword() {
-        askText("Current admin password", "Enter the current password first.", true) { current ->
-            when (adminPassword.verify(current)) {
-                PinLock.Result.OK -> createAdminPassword()
-                PinLock.Result.WAIT -> toast("Too many tries. Wait ${adminPassword.secondsToWait()} seconds.")
-                PinLock.Result.WRONG -> toast("Wrong password. ${adminPassword.triesLeft()} tries left.")
-            }
-        }
-    }
-
-    /** Step 1: the admin picks a device. Its screen starts showing a QR code. */
-    private fun startPairing(device: SessionStore.Device) {
-        when {
-            !settings.adminWebEnabled -> toast("Turn on \"Allow the admin website\" first.")
-            !adminPassword.isSet() -> toast("Set an admin password first.")
-            !ServerService.isSecure -> toast("The admin website needs HTTPS.")
-            SessionStore.shared.beginPairing(device.id) == null -> toast("That device is no longer signed in.")
-            else -> pairingDialog(device)
-        }
-    }
-
-    /** Step 2: scan the QR code on that device, or type the code under it. */
-    private fun pairingDialog(device: SessionStore.Device) {
-        AlertDialog.Builder(activity)
-            .setTitle("QR code is on ${device.label} (${device.user})")
-            .setMessage("Look at that device's screen. Make sure it is your own device. Scan the QR code with this phone, or choose Type code and enter the code under it. It works for 2 minutes.")
-            .setPositiveButton("Scan QR") { _, _ -> scanQr(device) }
-            .setNeutralButton("Type code") { _, _ ->
-                askText("Type the code", "Enter the code shown under the QR code.", false) { checkCode(device, it) }
-            }
-            .setNegativeButton("Cancel") { _, _ -> SessionStore.shared.cancelPairing(device.id) }
-            .setCancelable(false)
-            .show()
-    }
-
-    private fun scanQr(device: SessionStore.Device) {
-        val options = GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()
-        GmsBarcodeScanning.getClient(activity, options).startScan()
-            .addOnSuccessListener { barcode ->
-                val raw = barcode.rawValue.orEmpty()
-                if (raw.startsWith("PT:")) {
-                    checkCode(device, raw.removePrefix("PT:"))
-                } else {
-                    toast("That is not a Pocket Theater code.")
-                    pairingDialog(device)
-                }
-            }
-            .addOnCanceledListener { pairingDialog(device) }
-            .addOnFailureListener { e ->
-                toast("Scanning is not available (${e.message ?: "error"}). Type the code instead.")
-                pairingDialog(device)
-            }
-    }
-
-    /** Step 3: the code is right, so ask for the admin password. Only then does that device get the admin website. */
-    private fun checkCode(device: SessionStore.Device, typed: String) {
-        val code = typed.trim().replace("-", "").uppercase()
-        if (!SessionStore.shared.pairingMatches(device.id, code)) {
-            toast("That code is not for this device, or it ran out. Tap Show QR again.")
-            return
-        }
-        askText("Admin password", "Enter the admin password to open the admin website on ${device.label}.", true) { password ->
-            when (adminPassword.verify(password)) {
-                PinLock.Result.OK ->
-                    if (SessionStore.shared.completePairing(device.id, code)) {
-                        toast("The admin website is opening on ${device.label}")
-                        rebuildDevices()
-                    } else {
-                        toast("The code ran out. Tap Show QR again.")
-                    }
-                PinLock.Result.WAIT -> toast("Too many tries. Wait ${adminPassword.secondsToWait()} seconds.")
-                PinLock.Result.WRONG -> {
-                    toast("Wrong password. ${adminPassword.triesLeft()} tries left.")
-                    checkCode(device, code)
-                }
-            }
-        }
     }
 
     private fun buildSignups(column: LinearLayout) {
@@ -594,67 +481,6 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
 
     // ---- PIN steps ----
 
-    private fun pinDialog(title: String, prompt: String, onPin: (String, PinPad, () -> Unit) -> Unit) {
-        var dialog: AlertDialog? = null
-        lateinit var pad: PinPad
-        pad = PinPad(activity) { pin -> onPin(pin, pad) { dialog?.dismiss() } }
-        pad.setMessage(prompt)
-        val frame = FrameLayout(activity).apply {
-            setPadding(activity.dp(16), activity.dp(8), activity.dp(16), activity.dp(8))
-            addView(pad)
-        }
-        val d = AlertDialog.Builder(activity).setTitle(title).setView(frame).setNegativeButton("Cancel", null).create()
-        dialog = d
-        d.show()
-        d.window?.setBackgroundDrawable(GradientDrawable().apply {
-            cornerRadius = activity.dp(24).toFloat()
-            setColor(Theme.Midnight)
-        })
-    }
-
-    private fun choosePin(): Unit = pinDialog("Choose a PIN", "Enter ${PinLock.MIN_DIGITS} to ${PinLock.MAX_DIGITS} digits.") { first, _, close ->
-        close()
-        confirmPin(first)
-    }
-
-    private fun confirmPin(first: String): Unit = pinDialog("Confirm your PIN", "Enter the same PIN again.") { again, pad, close ->
-        if (again == first) {
-            pinLock.set(first)
-            close()
-            Toast.makeText(activity, "PIN lock is on", Toast.LENGTH_SHORT).show()
-            showCategory("privacy")
-        } else {
-            pad.clear()
-            pad.setMessage("The PINs do not match. Try again.", true)
-        }
-    }
-
-    private fun verifyCurrent(then: () -> Unit): Unit = pinDialog("Enter your PIN", "Enter your current PIN.") { pin, pad, close ->
-        when (pinLock.verify(pin)) {
-            PinLock.Result.OK -> {
-                close()
-                then()
-            }
-            PinLock.Result.WAIT -> {
-                pad.clear()
-                pad.setMessage("Too many tries. Wait ${pinLock.secondsToWait()} seconds.", true)
-            }
-            PinLock.Result.WRONG -> {
-                pad.clear()
-                val wait = pinLock.secondsToWait()
-                pad.setMessage(if (wait > 0) "Too many tries. Wait $wait seconds." else "Wrong PIN. ${pinLock.triesLeft()} tries left.", true)
-            }
-        }
-    }
-
-    private fun changePin(): Unit = verifyCurrent { choosePin() }
-
-    private fun turnOffPin(): Unit = verifyCurrent {
-        pinLock.clear()
-        Toast.makeText(activity, "PIN lock is off", Toast.LENGTH_SHORT).show()
-        showCategory("privacy")
-    }
-
     private fun chooseDelay() {
         val labels = arrayOf("Every time I leave", "After 1 minute", "After 5 minutes", "After 15 minutes")
         val seconds = intArrayOf(0, 60, 300, 900)
@@ -683,10 +509,13 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
     private fun confirmRenewCertificate() {
         AlertDialog.Builder(activity)
             .setTitle("Make a new certificate?")
-            .setMessage("Browsers will warn again the next time they connect, and you will compare the new fingerprint. Close and open the theater to start using it.")
+            .setMessage("Browsers will warn again the next time they connect, and you will compare the new fingerprint. If the theater is open it restarts now, which signs everyone out.")
             .setPositiveButton("Make new") { _, _ ->
                 try {
                     TlsIdentity.renew()
+                    if (ServerService.isRunning) {
+                        activity.startForegroundService(Intent(activity, ServerService::class.java).setAction(ServerService.ACTION_RESTART))
+                    }
                     Toast.makeText(activity, "New certificate made", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     Toast.makeText(activity, "Could not make a new certificate", Toast.LENGTH_LONG).show()

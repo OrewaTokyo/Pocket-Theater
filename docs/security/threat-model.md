@@ -1,8 +1,8 @@
 # Security notes (v0.2)
 
 Protected now:
-- Everyone has their own account. A new person asks for access on the website, and nothing works for them until the admin approves the request in the phone app. Approving, turning accounts off, deleting them and resetting passwords can only be done on the phone, never over the network.
-- Passwords are never stored. The phone keeps only a salted, scrambled form (PBKDF2-SHA256, 120,000 rounds) that cannot be turned back into the password.
+- Everyone has their own account. A new person asks for access on the website, and nothing works for them until the admin approves the request in the phone app. Approving, turning accounts off, deleting them and resetting passwords are done on the phone, or on the admin website that only the phone can open (see below).
+- Passwords are never stored. The phone keeps only a salted, scrambled form (PBKDF2-SHA256, 310,000 rounds for new passwords) that cannot be turned back into the password.
 - Signing in gives a random session cookie (HttpOnly, SameSite=Strict) that lasts 14 days. Closing the theater signs everyone out. Resetting a password, turning an account off or deleting it signs that person out at once.
 - Guessing is slowed down: after 8 wrong tries from one device it must wait 10 minutes, and each wrong try is delayed. Sign-up requests are limited per device, and at most 20 can be waiting.
 - Traffic is encrypted with HTTPS (TLS 1.2/1.3). The certificate is made on the phone and its private key stays in Android's key store. The plain port only redirects, and session cookies are Secure.

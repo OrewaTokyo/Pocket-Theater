@@ -12,16 +12,38 @@ object Auth {
     const val SESSION_SECONDS = 14L * 24 * 3600
     const val USERNAME_RULE = "Username must be 3 to 20 letters, numbers or _ (lowercase)."
     private const val ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
-    private const val ITERATIONS = 120_000
+    /** The number of rounds used before passwords were stored with their own count. PINs still use it. */
+    private const val LEGACY_ITERATIONS = 120_000
+    private const val ITERATIONS = 310_000
+    private val common = setOf(
+        "password", "password1", "password123", "12345678", "123456789", "1234567890", "qwertyui", "qwerty123",
+        "11111111", "iloveyou", "letmein1", "welcome1", "admin123", "abc12345", "pockettheater", "00000000",
+    )
     private val random = SecureRandom()
     private val usernamePattern = Regex("^[a-z0-9_]{3,20}$")
 
     fun newSalt(): ByteArray = ByteArray(16).also { random.nextBytes(it) }
 
     /** Passwords are never stored. Only this scrambled form is, and it cannot be turned back into the password. */
-    fun hash(password: String, salt: ByteArray): ByteArray {
-        val spec = PBEKeySpec(password.toCharArray(), salt, ITERATIONS, 256)
+    fun hash(password: String, salt: ByteArray, iterations: Int = LEGACY_ITERATIONS): ByteArray {
+        val spec = PBEKeySpec(password.toCharArray(), salt, iterations, 256)
         return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
+    }
+
+    /** Scrambles a password for storing, as "rounds:hash", so the number of rounds can be raised later without locking anyone out. */
+    fun encode(password: String, salt: ByteArray): String =
+        "$ITERATIONS:" + Base64.encodeToString(hash(password, salt, ITERATIONS), Base64.NO_WRAP)
+
+    /** Checks a password against what [encode] stored. Older accounts stored just the hash, so those are still accepted. */
+    fun check(password: String, salt: ByteArray, stored: String): Boolean {
+        val iterations = if (stored.contains(':')) (stored.substringBefore(':').toIntOrNull() ?: return false) else LEGACY_ITERATIONS
+        val expected = Base64.decode(stored.substringAfter(':', stored), Base64.NO_WRAP)
+        return MessageDigest.isEqual(hash(password, salt, iterations), expected)
+    }
+
+    /** Takes as long as a real check, so a wrong username cannot be told apart from a wrong password by timing. */
+    fun spendTime(password: String) {
+        hash(password, ByteArray(16), ITERATIONS)
     }
 
     fun matches(password: String, salt: ByteArray, expected: ByteArray): Boolean =
@@ -44,6 +66,7 @@ object Auth {
     fun passwordProblem(password: String): String? = when {
         password.length < 8 -> "Password needs at least 8 characters."
         password.length > 64 -> "Password can be at most 64 characters."
+        password.lowercase() in common || password.toSet().size == 1 -> "That password is too easy to guess. Pick another one."
         else -> null
     }
 }

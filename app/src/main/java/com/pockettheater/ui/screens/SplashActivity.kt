@@ -107,7 +107,7 @@ class SplashActivity : Activity() {
         }
         AlertDialog.Builder(this)
             .setTitle("Pocket Theater had a problem")
-            .setMessage("It closed unexpectedly last time. Copy this report and send it so the problem can be fixed.")
+            .setMessage("Something went wrong last time. Copy this report and send it so the problem can be fixed.")
             .setView(ScrollView(this).apply { addView(text) })
             .setPositiveButton("Copy and continue") { _, _ ->
                 getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Problem report", report))

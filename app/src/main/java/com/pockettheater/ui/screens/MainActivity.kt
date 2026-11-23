@@ -48,6 +48,7 @@ class MainActivity : Activity() {
     private lateinit var lockPad: PinPad
     private var locked = false
     private var leftAt = 0L
+    private var skipLockUntil = 0L
     private val tabItems = ArrayList<LinearLayout>()
     private val tabIcons = ArrayList<ImageView>()
     private val tabLabels = ArrayList<TextView>()
@@ -100,8 +101,18 @@ class MainActivity : Activity() {
         outState.putInt(STATE_TAB, tab)
     }
 
+    /** Call just before opening another screen on purpose (the folder picker, the QR scanner), so coming back does not ask for the PIN. */
+    fun skipNextLock() {
+        skipLockUntil = SystemClock.elapsedRealtime() + 120_000L
+    }
+
     override fun onStart() {
         super.onStart()
+        if (SystemClock.elapsedRealtime() < skipLockUntil) {
+            skipLockUntil = 0L
+            leftAt = 0L
+            return
+        }
         val awayMs = SystemClock.elapsedRealtime() - leftAt
         if (!locked && leftAt != 0L && awayMs >= settings.lockAfterSeconds * 1000L) lockNow()
     }
@@ -122,6 +133,8 @@ class MainActivity : Activity() {
     private fun applyScreenPrivacy() {
         if (settings.hideInRecents) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        // With a PIN set, the recent-apps picture would show what the PIN is meant to hide, so it is blanked (screenshots still work).
+        if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(!(pinLock.isSet() || settings.hideInRecents))
     }
 
     /** Covers the app and asks for the PIN. Does nothing when no PIN is set. */
@@ -201,7 +214,10 @@ class MainActivity : Activity() {
             Triple(R.drawable.ic_tab_profile, "Profile", 2),
         )
         tabs.forEach { (iconRes, name, index) ->
-            val iconView = ImageView(this).apply { setImageResource(iconRes) }
+            val iconView = ImageView(this).apply {
+                setImageResource(iconRes)
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO // the label under it already says what it is
+            }
             val labelView = textView(name, 12f, Theme.Muted, bold = true).apply { gravity = Gravity.CENTER }
             tabIcons.add(iconView)
             tabLabels.add(labelView)
@@ -210,6 +226,7 @@ class MainActivity : Activity() {
                 gravity = Gravity.CENTER
                 setPadding(0, dp(8), 0, dp(8))
                 isClickable = true
+                contentDescription = "$name tab"
                 setOnClickListener { select(index) }
                 addView(iconView, lp(dp(24), dp(24)))
                 addView(labelView, lp(WRAP, WRAP, top = 2))
@@ -252,6 +269,7 @@ class MainActivity : Activity() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(
             Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
         )
+        skipNextLock()
         @Suppress("DEPRECATION")
         startActivityForResult(intent, REQUEST_FOLDER)
     }

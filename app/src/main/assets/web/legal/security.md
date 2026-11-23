@@ -17,10 +17,11 @@ If you do not see that button, open a public issue that only asks for a private 
 
 - **Encryption.** The website uses HTTPS (TLS 1.2 or 1.3) with a certificate the phone makes for itself. Its private key lives in Android's key store and cannot be read out. The old plain port (8080) only sends visitors to the secure one (8443). After the theater starts, the app opens a test connection to itself, and if the secure handshake does not work it falls back to plain HTTP and shows a warning on the Dashboard. Session cookies are marked Secure while HTTPS is on.
 - **Admin website (off by default).** If you turn it on in Settings, you can open admin tools (stats, sign-up requests, accounts, devices) in a browser on another device. You pick that device on the phone, its screen shows a QR code, you scan the code with the phone and type the admin password on the phone. The password and the code are only ever checked on the phone, never over the network, so there is nothing for a stranger to guess. It works only over HTTPS, only for that one browser, closes after 30 minutes without use (4 hours at most), and can be ended from the phone at any time. It cannot change shared folders, settings, the PIN or the certificate, and it cannot change your own account.
-- **Accounts.** Nobody gets in until the admin approves them on the phone. Approving, turning off, deleting and password resets can only be done on the phone, never over the network.
-- **Passwords.** Stored only as a salted PBKDF2-SHA256 hash (120,000 rounds). Sign-in sessions are random cookies (HttpOnly, SameSite=Strict) that last up to 14 days and end when the theater closes. Resetting a password, turning an account off, deleting it, or "Sign everyone out" ends the affected sessions at once.
+- **Accounts.** Nobody gets in until the admin approves them on the phone. Approving, turning off, deleting and password resets are done on the phone, or on the admin website described next, which only the phone can open.
+- **Passwords.** Stored only as a salted PBKDF2-SHA256 hash (310,000 rounds for new passwords, 120,000 for older ones). Very common passwords, one repeated character and a password equal to the username are refused. Sign-in sessions are random cookies (HttpOnly, SameSite=Strict) that last up to 14 days and end when the theater closes. Resetting a password, turning an account off, deleting it, or "Sign everyone out" ends the affected sessions at once.
 - **Guessing.** After 8 wrong sign-in tries from one device, it must wait 10 minutes. Sign-up requests are limited per device, and at most 20 can be waiting.
-- **Files.** Read-only. Only folders picked with Android's folder picker are reachable, and `..` paths are refused. File names are shown as plain text on the page.
+- **Files.** Read-only. Only folders picked with Android's folder picker are reachable, and `..` paths and hidden files are refused. File names are shown as plain text on the page. Web pages and scripts inside a shared folder (`.html`, `.xml`, `.js` and similar) are only ever offered as a download and never run on the site, and an SVG picture gets no scripts when opened on its own.
+- **Page rules.** Every page carries a Content-Security-Policy that only allows scripts, styles and media from the site itself, and cannot be put in a frame from another site.
 - **App lock.** An optional 4 to 6 digit PIN, stored scrambled, with a growing wait after every 5 wrong tries. An option hides the app in recent apps and blocks screenshots.
 - **Backups.** Android backup is off, so secrets are not copied to cloud backups.
 
@@ -34,6 +35,7 @@ More detail is in [docs/security/threat-model.md](docs/security/threat-model.md)
 - **The admin is whoever holds the unlocked phone.** Keep the PIN on and the phone locked.
 - **The admin website opens the admin tools to a browser.** While it is open, anyone using that browser can approve people, reset passwords and delete accounts. Only pair your own device, and end it when you are done. The QR scan uses Google's code scanner from Google Play services; if it is not available, type the code instead.
 - **Approved people see every shared folder.** There are no per-person permissions yet.
+- **No hard limit on connections.** A device on your network that opens many connections at once could slow the phone down. Requests nobody answered for a week are dropped so sign-up places do not stay full.
 - **Password resets are handed over by you.** The phone shows the new password and you pass it on.
 
 ## Staying safe
@@ -47,9 +49,9 @@ More detail is in [docs/security/threat-model.md](docs/security/threat-model.md)
 
 ## Build and release
 
-- APKs are built by GitHub Actions from this repository and published as releases. Only install APKs from your own repository's Releases.
+- APKs are built by GitHub Actions from this repository as release (not debug) builds and published with a SHA-256 checksum file. The Kotlin and JavaScript tests run first. Only install APKs from your own repository's Releases.
 - Every build is signed with one permanent key, so updates install over each other. The key is kept in the repository's secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`) and must never be committed.
-- Before a build is published, a check confirms the APK's package name, version, permissions and that it is signed with that exact key.
+- Before a build is published, a check confirms the APK's package name, version, permissions, that it is not debuggable, and that it is signed with that exact key.
 - If you think the phone's HTTPS certificate was copied, use Make a new certificate in Settings.
 - If the app signing key ever leaks, make a new one. After that, each phone has to uninstall the app once.
 

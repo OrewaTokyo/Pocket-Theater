@@ -34,9 +34,13 @@ assert.ok(u.usernameProblem("ab"));
 assert.ok(u.usernameProblem("Has Space"));
 assert.ok(u.usernameProblem("UPPER"));
 assert.ok(u.usernameProblem("a".repeat(21)));
-assert.strictEqual(u.passwordProblem("12345678"), null);
+assert.strictEqual(u.passwordProblem("blue-Heron-47"), null);
 assert.ok(u.passwordProblem("short"));
 assert.ok(u.passwordProblem("x".repeat(65)));
+assert.ok(u.passwordProblem("Password"));            // too common, whatever the capital letters
+assert.ok(u.passwordProblem("aaaaaaaa"));            // one character repeated
+assert.ok(u.passwordProblem("tokyo2026", "tokyo2026")); // the same as the username
+assert.strictEqual(u.passwordProblem("blue-Heron-47", "tokyo"), null);
 
 // Polling: calm while all is well, quicker after a miss, never slower than 6 seconds while offline.
 assert.strictEqual(u.pollDelay(true, 0), 3000);

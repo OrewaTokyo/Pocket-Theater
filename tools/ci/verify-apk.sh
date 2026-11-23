@@ -15,22 +15,25 @@ BT=$(ls -d "$SDK"/build-tools/* 2>/dev/null | sort -V | tail -1)
 [ -n "$BT" ] || fail "Android build-tools were not found on this runner."
 
 BADGING=$("$BT/aapt2" dump badging "$APK")
-echo "$BADGING" | grep -m1 "^package:"
-echo "$BADGING" | grep -q "^package: name='com.pockettheater' versionCode='$CODE' versionName='$NAME'" \
+grep -m1 "^package:" <<<"$BADGING"
+grep -q "^package: name='com.pockettheater' versionCode='$CODE' versionName='$NAME'" <<<"$BADGING" \
   || fail "APK id or version is wrong. Expected com.pockettheater, code $CODE, name $NAME."
 # Different build-tools versions print the minimum Android version as sdkVersion or as minSdkVersion, so accept both.
-if ! echo "$BADGING" | grep -Eq "^(min)?[sS]dkVersion:'31'"; then
-  echo "Lines about the Android version in the APK:"; echo "$BADGING" | grep -i "sdkversion" || echo "(none)"
+if ! grep -Eq "^(min)?[sS]dkVersion:'31'" <<<"$BADGING"; then
+  echo "Lines about the Android version in the APK:"; grep -i "sdkversion" <<<"$BADGING" || echo "(none)"
   fail "APK minimum Android version is not 12 (API 31)."
 fi
 
+# A debuggable app lets anyone with a USB cable read its private data, so a published build must not be one.
+if grep -q "^application-debuggable" <<<"$BADGING"; then fail "The APK is a debug build (debuggable). Publish the release build."; fi
+
 for perm in INTERNET FOREGROUND_SERVICE FOREGROUND_SERVICE_SPECIAL_USE POST_NOTIFICATIONS; do
-  echo "$BADGING" | grep -q "uses-permission: name='android.permission.$perm'" || fail "Permission $perm is missing."
+  grep -q "uses-permission: name='android.permission.$perm'" <<<"$BADGING" || fail "Permission $perm is missing."
 done
 
 LIST=$(unzip -Z1 "$APK")
-echo "$LIST" | grep -q '^classes.dex$' || fail "APK has no app code (classes.dex)."
-echo "$LIST" | grep -q '^assets/web/index.html$' || fail "The laptop site (assets/web/index.html) is not inside the APK."
+grep -q '^classes.dex$' <<<"$LIST" || fail "APK has no app code (classes.dex)."
+grep -q '^assets/web/index.html$' <<<"$LIST" || fail "The laptop site (assets/web/index.html) is not inside the APK."
 
 "$BT/apksigner" verify --print-certs "$APK" | tee /tmp/certs.txt
 FP=$(grep -m1 'SHA-256 digest' /tmp/certs.txt | awk '{print $NF}')

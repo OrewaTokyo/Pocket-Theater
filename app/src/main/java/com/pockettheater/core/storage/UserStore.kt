@@ -35,15 +35,17 @@ class UserStore(context: Context) {
     /** Saves a sign-up request. Returns null when saved, or a sentence saying why not. */
     fun register(name: String, password: String, agreedAt: Long): String? {
         val salt = Auth.newSalt()
-        val hash = Auth.hash(password, salt)
+        val hash = Auth.encode(password, salt)
         return synchronized(LOCK) {
-            val list = read()
+            // Requests nobody answered for a week drop away, so they cannot fill every waiting place for good.
+            val weekAgo = System.currentTimeMillis() - 7L * 24 * 3600 * 1000
+            val list = read().filterNot { it.status == AccountStatus.PENDING && it.created in 1 until weekAgo }
             when {
                 list.any { it.name == name } -> "That username is taken. Pick another one."
                 list.count { it.status == AccountStatus.PENDING } >= MAX_PENDING ->
                     "Too many requests are waiting. Ask the admin to clear them first."
                 else -> {
-                    write(list + Account(name, AccountStatus.PENDING, enc(salt), enc(hash), 0, System.currentTimeMillis(), agreedAt))
+                    write(list + Account(name, AccountStatus.PENDING, enc(salt), hash, 0, System.currentTimeMillis(), agreedAt))
                     null
                 }
             }
@@ -54,10 +56,10 @@ class UserStore(context: Context) {
     fun check(name: String, password: String): Account? {
         val account = find(name)
         if (account == null) {
-            Auth.hash(password, DUMMY_SALT) // same work as a real check, so timing does not reveal which names exist
+            Auth.spendTime(password) // same work as a real check, so timing does not reveal which names exist
             return null
         }
-        return if (Auth.matches(password, dec(account.salt), dec(account.hash))) account else null
+        return if (Auth.check(password, dec(account.salt), account.hash)) account else null
     }
 
     fun approve(name: String) = change(name) {
@@ -80,8 +82,8 @@ class UserStore(context: Context) {
 
     fun setPassword(name: String, password: String) {
         val salt = Auth.newSalt()
-        val hash = Auth.hash(password, salt)
-        change(name) { it.copy(salt = enc(salt), hash = enc(hash), version = it.version + 1) }
+        val hash = Auth.encode(password, salt)
+        change(name) { it.copy(salt = enc(salt), hash = hash, version = it.version + 1) }
     }
 
     /** Gives the account a new random password and returns it, for the admin to pass on. */
@@ -124,6 +126,5 @@ class UserStore(context: Context) {
         private const val KEY = "users"
         private const val MAX_PENDING = 20
         private val LOCK = Any()
-        private val DUMMY_SALT = ByteArray(16)
     }
 }

@@ -53,6 +53,11 @@ class PinPad(context: Context, private val onSubmit: (String) -> Unit) : LinearL
                 if (!ok) setStroke(context.dp(1), Theme.Border)
             }
             isClickable = true
+            contentDescription = when (key) {
+                "\u232B" -> "Delete"
+                "OK" -> "Confirm"
+                else -> key
+            }
             setOnClickListener { press(key) }
         }
     }
