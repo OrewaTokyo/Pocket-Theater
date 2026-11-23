@@ -1,0 +1,11 @@
+# Keeps the build tools and libraries current. Updates arrive as pull requests, one per package, never straight into main.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "monthly"

@@ -58,23 +58,29 @@ jobs:
           echo "name=$BASE-b${{ github.run_number }}" >> "$GITHUB_OUTPUT"
           # Minutes since 2023-11-14. It only ever goes up, so Android never sees a downgrade.
           echo "code=$(( ($(date +%s) - 1700000000) / 60 ))" >> "$GITHUB_OUTPUT"
-      - name: Build debug APK
+      - name: Run the Kotlin tests
+        run: gradle testDebugUnitTest --no-daemon
+      - name: Build release APK
         env:
           APP_VERSION_NAME: ${{ steps.ver.outputs.name }}
           APP_VERSION_CODE: ${{ steps.ver.outputs.code }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        run: gradle assembleDebug --no-daemon
+        run: gradle assembleRelease --no-daemon
       - name: Check the APK has the right id, version, permissions and signature
         id: fp
-        run: bash tools/ci/verify-apk.sh app/build/outputs/apk/debug/app-debug.apk "${{ steps.ver.outputs.code }}" "${{ steps.ver.outputs.name }}"
+        run: bash tools/ci/verify-apk.sh app/build/outputs/apk/release/app-release.apk "${{ steps.ver.outputs.code }}" "${{ steps.ver.outputs.name }}"
       - name: Name the APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk "PocketTheater-v${{ steps.ver.outputs.name }}.apk"
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk "PocketTheater-v${{ steps.ver.outputs.name }}.apk"
+          sha256sum "PocketTheater-v${{ steps.ver.outputs.name }}.apk" > "PocketTheater-v${{ steps.ver.outputs.name }}.apk.sha256"
       - name: Publish a new release for this build
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.name }}
           name: Pocket Theater v${{ steps.ver.outputs.name }}
           target_commitish: ${{ github.sha }}
-          body: "Debug build, version code ${{ steps.ver.outputs.code }}, signing key SHA-256 ${{ steps.fp.outputs.key }}. Signed with the permanent key, so it installs over the previous build."
+          body: "Release build, version code ${{ steps.ver.outputs.code }}, signing key SHA-256 ${{ steps.fp.outputs.key }}. Signed with the permanent key, so it installs over the previous build."
           generate_release_notes: true
-          files: PocketTheater-v${{ steps.ver.outputs.name }}.apk
+          files: |
+            PocketTheater-v${{ steps.ver.outputs.name }}.apk
+            PocketTheater-v${{ steps.ver.outputs.name }}.apk.sha256
