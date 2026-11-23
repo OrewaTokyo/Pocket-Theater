@@ -1,4 +1,6 @@
 name: Unpack site.zip
+# Works on any branch (main, Test-2, ...). Push site.zip to a branch: it is unpacked into that same branch,
+# and the APK build is started on that same branch, so a test branch builds its own code.
 on:
   push:
     paths: ["site.zip"]
@@ -6,28 +8,38 @@ on:
 permissions:
   contents: write
   actions: write
+concurrency:
+  group: unpack-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   unpack:
     runs-on: ubuntu-latest
+    env:
+      BRANCH: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
       - name: Unpack into folders
         run: |
-          test -f site.zip || { echo "site.zip was not found in the repo root"; exit 1; }
+          echo "Branch: $BRANCH"
+          test -f site.zip || { echo "::error::site.zip was not found in the repo root of branch $BRANCH"; exit 1; }
           # site.zip may only carry app files. Workflows and anything pointing outside the repo are refused.
           if unzip -Z1 site.zip | grep -E '(^|/)\.\.(/|$)|^/|^\.github/|^build-apk\.yml$'; then
             echo "::error::site.zip holds files this workflow does not unpack (listed above). Change those by hand in GitHub."; exit 1
           fi
           unzip -o site.zip
           rm site.zip
-      - name: Commit
+      - name: Commit to this branch
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
           git add -A
           git commit -m "Unpack site.zip" || echo "Nothing to commit"
-          git push
-      - name: Start the APK build
+          git pull --rebase origin "$BRANCH" || true
+          git push origin "HEAD:refs/heads/$BRANCH"
+      - name: Start the APK build on this branch
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run build-apk.yml || true
+        run: |
+          gh workflow run build-apk.yml --ref "$BRANCH" \
+            && echo "Build started on $BRANCH" \
+            || echo "::warning::Could not start build-apk.yml on $BRANCH. Make sure the file exists on that branch, then run Build APK by hand."
