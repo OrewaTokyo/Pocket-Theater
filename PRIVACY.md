@@ -47,9 +47,9 @@ Files and pages are sent to the devices of approved people over your own Wi-Fi o
 
 If the app closes unexpectedly, or hits an error it recovers from, it saves a short report on the phone: the error text, the phone model and the Android version. It holds no files, usernames or passwords. The next time you open the app it offers to copy the report so you can send it yourself. It is never sent anywhere automatically.
 
-## The QR scanner
+## The camera and the QR scanner
 
-If you use the admin website, the phone scans a QR code with Google's code scanner, which is part of Google Play services. It runs on the phone, and Google's own terms and privacy notice apply to that component. If you type the code instead, nothing from Google is involved.
+If you use the admin website, the app opens the phone's camera to scan the QR code that the website shows. The scanner is built into the app: it runs on the phone, does not use Google Play services, and no picture or video is taken, saved or sent anywhere. The camera is only on while the scanner screen is open. Android asks for the camera permission the first time, and you can say no and type the code printed under the QR code instead.
 
 ## Cookies
 

@@ -99,27 +99,35 @@ class SplashActivity : Activity() {
     /** The app closed on its own last time. Offer the report so it can be copied and sent, then carry on. */
     private fun showReport(report: String) {
         val text = TextView(this).apply {
-            this.text = report
+            // The whole report is copied, but only the start is shown, so the dialog never grows past the screen.
+            this.text = if (report.length > SHOWN_CHARS) report.take(SHOWN_CHARS) + "\n\u2026 (the full report is copied)" else report
             textSize = 11f
             typeface = android.graphics.Typeface.MONOSPACE
             setTextIsSelectable(true)
             setPadding(dp(20), dp(8), dp(20), dp(8))
         }
+        // The report scrolls inside a box that is at most 40% of the screen, so the buttons below it are always visible.
+        val limit = (resources.displayMetrics.heightPixels * 0.4f).toInt()
+        val scroll = object : ScrollView(this) {
+            override fun onMeasure(widthSpec: Int, heightSpec: Int) {
+                super.onMeasure(widthSpec, View.MeasureSpec.makeMeasureSpec(limit, View.MeasureSpec.AT_MOST))
+            }
+        }.apply { addView(text) }
+        val done = {
+            CrashLog.clear(this)
+            handler.postDelayed(openApp, 300)
+        }
         AlertDialog.Builder(this)
             .setTitle("Pocket Theater had a problem")
             .setMessage("Something went wrong last time. Copy this report and send it so the problem can be fixed.")
-            .setView(ScrollView(this).apply { addView(text) })
+            .setView(scroll)
             .setPositiveButton("Copy and continue") { _, _ ->
                 getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Problem report", report))
                 Toast.makeText(this, "Report copied", Toast.LENGTH_SHORT).show()
-                CrashLog.clear(this)
-                handler.postDelayed(openApp, 300)
+                done()
             }
-            .setNegativeButton("Continue") { _, _ ->
-                CrashLog.clear(this)
-                handler.postDelayed(openApp, 300)
-            }
-            .setCancelable(false)
+            .setNegativeButton("Continue") { _, _ -> done() }
+            .setOnCancelListener { done() } // the back button also continues, so this screen can never trap the app
             .show()
     }
 
@@ -143,5 +151,6 @@ class SplashActivity : Activity() {
 
     companion object {
         private const val LOADING_MS = 1600L
+        private const val SHOWN_CHARS = 3500
     }
 }

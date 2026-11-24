@@ -27,10 +27,12 @@ If you installed a build made before the permanent key existed, Android will ref
 ## Admin tools in a browser (optional)
 
 1. On the phone open **Profile > Settings > Admin website**, set an admin password, then turn on **Allow the admin website**. It needs HTTPS and the theater open.
-2. Sign in on the laptop's browser with your own account.
-3. On the phone, under **Devices on the website**, tap **Show QR** next to that laptop. A QR code appears on the laptop's screen.
-4. Tap **Scan QR** on the phone (or **Type code**), scan it, then type the admin password on the phone.
-5. The admin page opens on the laptop. It closes by itself after 30 minutes without use. **End admin** on the phone closes it at once.
+2. Sign in on the laptop's browser with your own account, then click **Admin sign-in** in the top bar. A QR code appears on the laptop's screen.
+3. On the phone open **Profile > Scan admin QR** and point the camera at the code. The first time, Android asks to allow the camera. If the camera does not work, choose **Type code** and enter the code printed under the QR code.
+4. The laptop says the code was scanned. Type the admin password on the phone.
+5. The admin page opens on the laptop by itself. It closes after 30 minutes without use. **End admin** under Settings on the phone closes it at once.
+
+You can also start from the phone: under **Devices on the website** tap **Show QR** next to the laptop, then scan it the same way.
 
 ## Subtitles
 

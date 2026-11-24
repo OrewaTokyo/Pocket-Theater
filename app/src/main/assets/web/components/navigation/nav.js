@@ -10,10 +10,15 @@ PT.nav = {
       shelves.map((c) => [c.id, c.icon + " " + c.label, "#/cat/" + PT.util.enc(c.id)])
     );
     if (PT.me && PT.me.admin) links.push(["Admin", "\u{1F6E0} Admin", "#/admin"]);
+    else if (PT.me && PT.me.admin_ready) links.push(["AdminSignIn", "\u{1F510} Admin sign-in", "#/admin"]); // only when the phone allows it
     nav.replaceChildren(
       ...links.map(([id, label, href]) => {
         const a = el("a", { href, text: label });
         if (id === active) a.setAttribute("aria-current", "page");
+        if (id === "AdminSignIn") {
+          // Not a page: it shows a QR code for the phone to scan, and the admin website opens once the phone says yes.
+          a.addEventListener("click", (event) => { event.preventDefault(); PT.session.start(); });
+        }
         return a;
       })
     );

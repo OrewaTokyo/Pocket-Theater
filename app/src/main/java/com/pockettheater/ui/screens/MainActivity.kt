@@ -33,6 +33,7 @@ import com.pockettheater.ui.components.dp
 import com.pockettheater.ui.components.lp
 import com.pockettheater.ui.components.textView
 import com.pockettheater.ui.theme.Theme
+import com.pockettheater.ui.components.QrScanner
 import com.pockettheater.util.CrashLog
 
 /** The shell: the three pages (Dashboard, Folders, Profile) and the tab bar along the bottom. */
@@ -279,6 +280,7 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (QrScanner.handleResult(requestCode, resultCode, data)) return // the QR scanner built into the app
         if (requestCode != REQUEST_FOLDER || resultCode != RESULT_OK) return
         val uri = data?.data ?: return
         try {

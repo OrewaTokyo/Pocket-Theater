@@ -33,6 +33,7 @@ class SessionStore {
         @Volatile var adminLimit = 0L
         @Volatile var pairCode: String? = null
         @Volatile var pairExpires = 0L
+        @Volatile var pairScanned = false
     }
 
     private val sessions = ConcurrentHashMap<String, Session>()
@@ -90,11 +91,15 @@ class SessionStore {
         val code = Auth.newCode()
         session.pairCode = code
         session.pairExpires = System.currentTimeMillis() + PAIR_MS
+        session.pairScanned = false
         return code
     }
 
     fun cancelPairing(deviceId: String) {
-        byId(deviceId)?.pairCode = null
+        byId(deviceId)?.let {
+            it.pairCode = null
+            it.pairScanned = false
+        }
     }
 
     /** The pairing code waiting on this browser and when it runs out, or null. */
@@ -106,6 +111,31 @@ class SessionStore {
             return null
         }
         return Pair(code, session.pairExpires)
+    }
+
+    /** True while the phone has scanned this browser's code and is asking the admin for the password. */
+    fun pairingScanned(token: String?): Boolean {
+        val session = if (token == null) null else sessions[token]
+        return session != null && session.pairCode != null && session.pairScanned && session.pairExpires >= System.currentTimeMillis()
+    }
+
+    /** The signed-in browser that is showing this live code, or null. The phone uses it after scanning a QR code. */
+    fun deviceForCode(code: String): Device? {
+        val now = System.currentTimeMillis()
+        val wanted = code.trim().uppercase().toByteArray()
+        var found: Session? = null
+        for (session in sessions.values) {
+            val expected = session.pairCode ?: continue
+            if (session.pairExpires < now || session.expires < now) continue
+            if (MessageDigest.isEqual(expected.toByteArray(), wanted)) found = session
+        }
+        return found?.let { Device(it.id, it.user, it.label, it.ip, it.since, it.lastSeen, it.adminUntil > now) }
+    }
+
+    /** Lets the website show "scanned, now type the password on the phone", or take it back if the admin backs out. */
+    fun markScanned(deviceId: String, code: String, scanned: Boolean) {
+        if (!pairingMatches(deviceId, code)) return
+        byId(deviceId)?.pairScanned = scanned
     }
 
     /** True if this code is the live one for this device. Does not use it up. */
@@ -122,6 +152,7 @@ class SessionStore {
         val session = byId(deviceId) ?: return false
         val now = System.currentTimeMillis()
         session.pairCode = null
+        session.pairScanned = false
         session.adminLimit = now + ADMIN_MAX_MS
         session.adminUntil = now + ADMIN_IDLE_MS
         return true
@@ -141,6 +172,7 @@ class SessionStore {
         byId(deviceId)?.let {
             it.adminUntil = 0L
             it.pairCode = null
+            it.pairScanned = false
         }
     }
 

@@ -3,6 +3,7 @@ package com.pockettheater.core.server
 import android.content.Context
 import android.net.Uri
 import android.webkit.MimeTypeMap
+import com.pockettheater.core.security.AdminPassword
 import com.pockettheater.core.security.Auth
 import com.pockettheater.core.security.LoginThrottle
 import com.pockettheater.core.security.PathGuard
@@ -33,7 +34,7 @@ import org.json.JSONObject
 /**
  * The server your laptop talks to. Shared folders are read-only. People can ask to join, sign in and change their own
  * password. Approving people, resetting passwords and similar admin work happens on the phone, or on the admin website
- * that the admin opens on one browser with a QR code scan and the admin password (see [SessionStore]).
+ * that the admin opens on one browser: the site shows a QR code, the phone scans it and asks for the admin password (see [SessionStore]).
  */
 class PocketServer(
     context: Context,
@@ -49,6 +50,8 @@ class PocketServer(
     private val deviceStats = DeviceStats(appContext)
     private val loginThrottle = LoginThrottle(8, 10 * 60_000L)
     private val signupThrottle = LoginThrottle(5, 10 * 60_000L)
+    private val adminPassword = AdminPassword(appContext)
+    private val pairThrottle = LoginThrottle(10, 10 * 60_000L)
     private val browser = DocumentBrowser(appContext.contentResolver)
     private val assets = StaticAssets(appContext)
 
@@ -100,19 +103,48 @@ class PocketServer(
 
     // ---- admin website ----
 
-    /** Who is asking, whether this browser has been opened as admin, and a pairing code if the phone started one. */
+    /** Who is asking, whether this browser has been opened as admin, whether it may ask for admin sign-in, and any pairing in progress. */
     private fun me(session: IHTTPSession, user: Account): Response {
         val token = cookie(session, Auth.COOKIE)
         val body = JSONObject().put("username", user.name)
         val adminOn = settings.adminWebEnabled && secure
         // Asking who you are must not keep the admin session alive, only real admin actions do.
         body.put("admin", adminOn && sessions.isAdmin(token, false))
-        val pair = if (adminOn) sessions.pairing(token) else null
-        if (pair != null) {
-            val left = ((pair.second - System.currentTimeMillis()) / 1000).toInt().coerceAtLeast(0)
-            body.put("pair", JSONObject().put("code", pair.first).put("expires_in", left))
-        }
+        // The site only offers "Admin sign-in" when the phone could actually finish it.
+        body.put("admin_ready", adminOn && adminPassword.isSet())
+        if (adminOn) pairJson(token)?.let { body.put("pair", it) }
         return jsonResponse(Status.OK, body)
+    }
+
+    /** The pairing waiting on this browser (code, seconds left, whether the phone has scanned it), or null. */
+    private fun pairJson(token: String?): JSONObject? {
+        val pair = sessions.pairing(token) ?: return null
+        val left = ((pair.second - System.currentTimeMillis()) / 1000).toInt().coerceAtLeast(0)
+        return JSONObject().put("code", pair.first).put("expires_in", left).put("scanned", sessions.pairingScanned(token))
+    }
+
+    /**
+     * The website asks for a QR code. Nothing opens yet: the phone has to scan the code and the admin has to type the
+     * admin password there. This only shows a code, so any signed-in browser may ask, a few times at most.
+     */
+    private fun startPairing(session: IHTTPSession): Response {
+        currentUser(session) ?: return signedOut()
+        val token = cookie(session, Auth.COOKIE)
+        val deviceId = sessions.deviceId(token) ?: return signedOut()
+        if (!secure) return jsonError(Status.FORBIDDEN, "The admin website only works over HTTPS.")
+        if (!settings.adminWebEnabled) return jsonError(Status.FORBIDDEN, "The admin website is turned off. Turn it on in the phone's Settings.")
+        if (!adminPassword.isSet()) return jsonError(Status.FORBIDDEN, "Set an admin password on the phone first.")
+        if (pairThrottle.blocked(deviceId)) return jsonError(Http.TOO_MANY, "Too many tries. Wait a few minutes and try again.")
+        pairThrottle.hit(deviceId)
+        sessions.beginPairing(deviceId) ?: return signedOut()
+        return jsonResponse(Status.OK, pairJson(token) ?: JSONObject())
+    }
+
+    /** The website's Hide button: the code stops working at once. */
+    private fun endPairing(session: IHTTPSession): Response {
+        currentUser(session) ?: return signedOut()
+        sessions.deviceId(cookie(session, Auth.COOKIE))?.let { sessions.cancelPairing(it) }
+        return jsonResponse(Status.OK, JSONObject().put("ok", true))
     }
 
     /** The QR picture for this browser's own pairing code. The phone scans it. */
@@ -129,7 +161,7 @@ class PocketServer(
         if (user == null) return signedOut()
         if (!secure) return jsonError(Status.FORBIDDEN, "The admin website only works over HTTPS.")
         if (!settings.adminWebEnabled || !sessions.isAdmin(cookie(session, Auth.COOKIE), true)) {
-            return jsonError(Status.FORBIDDEN, "Admin access is not open on this device. Start it again from the phone.")
+            return jsonError(Status.FORBIDDEN, "Admin access is not open on this device. Tap Admin sign-in at the top of the site and scan the QR code with the phone.")
         }
         return null
     }
@@ -246,6 +278,8 @@ class PocketServer(
             "/api/register" -> register(session, json)
             "/api/logout" -> logout(session)
             "/api/password" -> changePassword(session, json)
+            "/api/pair/start" -> startPairing(session)
+            "/api/pair/cancel" -> endPairing(session)
             else -> jsonError(Status.NOT_FOUND, "Not found")
         }
     }
