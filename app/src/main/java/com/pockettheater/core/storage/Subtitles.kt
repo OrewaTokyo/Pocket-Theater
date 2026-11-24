@@ -105,7 +105,8 @@ object Subtitles {
     }
 
     private val clock = Regex("(\\d+):(\\d{2}):(\\d{2})[,.](\\d{1,3})")
-    private val styleTag = Regex("\\{[^}]*}")
+    // Every brace is escaped on purpose: Android's regex engine rejects a bare "}" that desktop Java accepts.
+    private val styleTag = Regex("\\{[^\\}]*\\}")
 
     private fun stamp(m: MatchResult): String =
         m.groupValues[1].padStart(2, '0') + ":" + m.groupValues[2] + ":" + m.groupValues[3] + "." + m.groupValues[4].padEnd(3, '0')
