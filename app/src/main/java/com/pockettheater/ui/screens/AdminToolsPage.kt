@@ -24,22 +24,19 @@ import com.pockettheater.ui.components.lp
 import com.pockettheater.ui.components.textView
 import com.pockettheater.ui.theme.Theme
 
-/** Approve or decline sign-up requests, manage accounts, and choose which folders are shared. */
-class AdminToolsPage(private val activity: Activity, private val onAddFolder: () -> Unit) : Screen {
+/** Approve or decline sign-up requests and manage accounts. Shared folders are on the Folders tab. */
+class AdminToolsPage(private val activity: Activity) : Screen {
     private val users = UserStore(activity)
-    private val store = ShareStore(activity)
     private var peopleRevision = 0
 
     private val requestsTitle = activity.textView("Sign-up requests", 17f, Theme.Ink, bold = true)
     private val requestBox = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
     private val accountBox = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
-    private val folderBox = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
 
     override val view: View = build()
 
     init {
         rebuildPeople()
-        rebuildFolders()
     }
 
     private fun build(): View {
@@ -61,21 +58,12 @@ class AdminToolsPage(private val activity: Activity, private val onAddFolder: ()
         accounts.addView(accountBox, activity.lp(MATCH, WRAP, top = 6))
         column.addView(accounts, activity.lp(MATCH, WRAP, top = 14))
 
-        val folders = activity.card(16)
-        folders.addView(activity.textView("Shared folders", 17f, Theme.Ink, bold = true))
-        folders.addView(folderBox, activity.lp(MATCH, WRAP, top = 6))
-        folders.addView(activity.actionButton("Add folder", filled = false) { onAddFolder() }, activity.lp(MATCH, WRAP, top = 10))
-        column.addView(folders, activity.lp(MATCH, WRAP, top = 14))
-
         return ScrollView(activity).apply { addView(column) }
     }
 
     override fun refresh() {
         if (users.revision() != peopleRevision) rebuildPeople()
     }
-
-    /** Call after a folder was added or removed somewhere else. */
-    fun reloadFolders() = rebuildFolders()
 
     private fun rebuildPeople() {
         peopleRevision = users.revision()
@@ -169,43 +157,5 @@ class AdminToolsPage(private val activity: Activity, private val onAddFolder: ()
     private fun copy(text: String) {
         activity.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("New password", text))
         Toast.makeText(activity, "Copied", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun rebuildFolders() {
-        folderBox.removeAllViews()
-        val libs = store.libraries()
-        if (libs.isEmpty()) {
-            folderBox.addView(activity.textView("No folders yet. Add one so people have something to watch.", 15f, Theme.Muted))
-            return
-        }
-        libs.forEach { lib ->
-            val row = LinearLayout(activity).apply {
-                orientation = LinearLayout.HORIZONTAL
-                setPadding(0, activity.dp(6), 0, activity.dp(6))
-            }
-            val names = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
-            names.addView(activity.textView(lib.name, 17f, Theme.Ink, bold = true))
-            names.addView(activity.textView(Theme.categoryLabel(lib.category), 14f, Theme.categoryColor(lib.category), bold = true))
-            row.addView(names, activity.lp(0, WRAP, 1f))
-            row.addView(activity.actionButton("Remove", filled = false) {
-                AlertDialog.Builder(activity)
-                    .setTitle("Stop sharing \"${lib.name}\"?")
-                    .setMessage("People will no longer see it on the website. Your files are not touched.")
-                    .setPositiveButton("Stop sharing") { _, _ -> removeFolder(lib.id, lib.uri) }
-                    .setNegativeButton("Cancel", null)
-                    .show()
-            })
-            folderBox.addView(row)
-        }
-    }
-
-    private fun removeFolder(id: String, uri: String) {
-        try {
-            activity.contentResolver.releasePersistableUriPermission(Uri.parse(uri), Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        } catch (e: Exception) {
-            // Already released; nothing to do.
-        }
-        store.remove(id)
-        rebuildFolders()
     }
 }

@@ -63,7 +63,7 @@ Android backup is turned off for this app, so accounts, the PIN and settings are
 
 - Delete an account, turn it off, or reset its password: Profile > Admin tools > Accounts.
 - Sign everyone out, or reset the Dashboard totals: Profile > Settings.
-- Stop sharing a folder: Profile > Admin tools > Shared folders > Remove.
+- Stop sharing a folder: Folders tab > tap the folder > Stop sharing. You can also move it to another shelf or rename it there.
 - Turn off the PIN lock: Profile > Settings > Privacy and data.
 - Make a new HTTPS certificate: Profile > Settings > Connection.
 - Turn off the admin website, change its password, or end an open admin session: Profile > Settings > Admin website.

@@ -32,6 +32,16 @@ PT.connection.onBack(() => {
 });
 PT.connection.start();
 
+// Learn which shelves have something in them, so the navigation only shows those.
+function loadShelves() {
+  PT.api.libraries().then((data) => {
+    PT.shelves = new Set(data.libraries.map((l) => l.category));
+    PT.nav.refresh();
+  }).catch(() => {});
+}
+loadShelves();
+PT.connection.onBack(loadShelves);
+
 // Show who is signed in, top right.
 PT.api.me().then((me) => {
   PT.session.update(me);

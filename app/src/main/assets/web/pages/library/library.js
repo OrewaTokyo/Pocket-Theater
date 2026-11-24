@@ -30,7 +30,13 @@ PT.pages.library = async function (main, libId, parts) {
   );
   const files = sorted
     .filter((e) => !e.dir)
-    .map((e) => ({ name: e.name, kind: PT.util.kind(e), url: PT.api.fileUrl(libId, parts.concat(e.name)) }));
+    .map((e) => ({
+      name: e.name,
+      kind: PT.util.kind(e),
+      url: PT.api.fileUrl(libId, parts.concat(e.name)),
+      // Subtitle files found next to the video. The phone turns them into WebVTT for the player.
+      subs: (e.subs || []).map((s) => ({ label: s.label, lang: s.lang, url: PT.api.subtitleUrl(libId, s.path.split("/")) })),
+    }));
 
   const tickets = sorted.map((entry) => {
     const kind = PT.util.kind(entry);

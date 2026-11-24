@@ -11,7 +11,9 @@ import com.pockettheater.core.storage.Account
 import com.pockettheater.core.storage.AccountStatus
 import com.pockettheater.core.storage.AppSettings
 import com.pockettheater.core.storage.DocumentBrowser
+import com.pockettheater.core.storage.FolderStats
 import com.pockettheater.core.storage.ShareStore
+import com.pockettheater.core.storage.Subtitles
 import com.pockettheater.core.storage.UserStore
 import com.pockettheater.util.CrashLog
 import com.pockettheater.util.DeviceLabel
@@ -86,6 +88,7 @@ class PocketServer(
             uri == "/api/libraries" -> if (user == null) signedOut() else libraries()
             uri == "/api/list" -> if (user == null) signedOut() else list(session)
             uri == "/file" -> if (user == null) signedOut() else file(session)
+            uri == "/subtitle" -> if (user == null) signedOut() else subtitle(session)
             uri == "/" || uri == "/index.html" -> if (user == null) redirect("/login.html") else assets.serve(uri)
             uri == "/login.html" && user != null -> redirect("/")
             uri.startsWith("/api/") -> jsonError(Status.NOT_FOUND, "Not found")
@@ -346,7 +349,11 @@ class PocketServer(
     private fun libraries(): Response {
         val arr = JSONArray()
         store.libraries().forEach {
-            arr.put(JSONObject().put("id", it.id).put("name", it.name).put("category", it.category))
+            // A folder with nothing in it, or one the phone can no longer read, stays off the website. So does a shelf with no folders left.
+            val summary = FolderStats.get(browser, it.uri)
+            if (summary.visible) {
+                arr.put(JSONObject().put("id", it.id).put("name", it.name).put("category", it.category).put("items", summary.items))
+            }
         }
         return jsonResponse(Status.OK, JSONObject().put("libraries", arr))
     }
@@ -358,12 +365,36 @@ class PocketServer(
         val target = browser.resolve(tree, segments) ?: return jsonError(Status.NOT_FOUND, "Folder not found")
         if (!target.isDir) return jsonError(Status.BAD_REQUEST, "Not a folder")
 
+        val all = browser.children(tree, target.docId).filter { !it.name.startsWith(".") }
+
+        // Subtitles sit next to the video, or in a Subs or Subtitles folder beside it.
+        class Sub(val name: String, val folder: List<String>)
+        val subs = ArrayList<Sub>()
+        all.filter { !it.isDir && Subtitles.isSubtitle(it.name) }.forEach { subs.add(Sub(it.name, segments)) }
+        val subFolders = HashSet<String>()
+        all.filter { it.isDir && it.name.lowercase() in Subtitles.FOLDER_NAMES }.forEach { dir ->
+            val inside = browser.children(tree, dir.docId).filter { !it.name.startsWith(".") }
+            inside.filter { !it.isDir && Subtitles.isSubtitle(it.name) }.forEach { subs.add(Sub(it.name, segments + dir.name)) }
+            // A folder that holds nothing but subtitles is not a place to browse, so it is left out of the list.
+            if (inside.all { !it.isDir && Subtitles.isSubtitle(it.name) }) subFolders.add(dir.name)
+        }
+
         val entries = JSONArray()
-        browser.children(tree, target.docId).filter { !it.name.startsWith(".") }.forEach {
-            entries.put(
-                JSONObject().put("name", it.name).put("dir", it.isDir)
-                    .put("size", it.size).put("mime", it.mime).put("modified", it.modified)
-            )
+        all.filter { !(it.isDir && it.name in subFolders) && (it.isDir || !Subtitles.isSubtitle(it.name)) }.forEach {
+            val item = JSONObject().put("name", it.name).put("dir", it.isDir)
+                .put("size", it.size).put("mime", it.mime).put("modified", it.modified)
+            if (!it.isDir && FolderStats.isVideo(it.name, it.mime)) {
+                val found = JSONArray()
+                subs.filter { s -> Subtitles.belongsTo(it.name, s.name) }.forEach { s ->
+                    found.put(
+                        JSONObject().put("label", Subtitles.label(it.name, s.name))
+                            .put("lang", Subtitles.language(it.name, s.name))
+                            .put("path", (s.folder + s.name).joinToString("/"))
+                    )
+                }
+                if (found.length() > 0) item.put("subs", found)
+            }
+            entries.put(item)
         }
         return jsonResponse(
             Status.OK,
@@ -372,6 +403,24 @@ class PocketServer(
                 .put("path", JSONArray(segments))
                 .put("entries", entries)
         )
+    }
+
+    /** A subtitle file as WebVTT, which is the only kind a browser reads. */
+    private fun subtitle(session: IHTTPSession): Response {
+        val lib = store.find(session.param("lib")) ?: return jsonError(Status.NOT_FOUND, "Unknown folder")
+        val segments = PathGuard.segments(session.param("path")) ?: return jsonError(Status.BAD_REQUEST, "Invalid path")
+        if (segments.isEmpty() || segments.any { it.startsWith(".") }) return jsonError(Status.NOT_FOUND, "File not found")
+        val tree = Uri.parse(lib.uri)
+        val target = browser.resolve(tree, segments) ?: return jsonError(Status.NOT_FOUND, "File not found")
+        if (target.isDir || !Subtitles.isSubtitle(target.name)) return jsonError(Status.BAD_REQUEST, "Not a subtitle file")
+        if (target.size > Subtitles.MAX_BYTES) return jsonError(Http.PAYLOAD_TOO_LARGE, "That subtitle file is too big")
+
+        val bytes = appContext.contentResolver.openInputStream(browser.documentUri(tree, target.docId))?.use { it.readBytes() }
+            ?: return jsonError(Status.NOT_FOUND, "File not found")
+        val vtt = Subtitles.toVtt(Subtitles.decode(bytes), target.name.substringAfterLast('.', ""))
+        ServerStats.bytes(vtt.length.toLong())
+        return newFixedLengthResponse(Status.OK, "text/vtt; charset=utf-8", vtt)
+            .also { it.addHeader("Cache-Control", "private, max-age=300") }
     }
 
     private fun file(session: IHTTPSession): Response {

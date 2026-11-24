@@ -12,6 +12,8 @@ import java.io.InputStream
 
 /** Sends a file, or just the part the browser asks for, so videos can be skipped through. */
 object RangeHandler {
+    /** The most one answer carries. A player asks again for the next piece, like any video site. */
+    private const val CHUNK = 4L * 1024 * 1024
 
     fun serve(resolver: ContentResolver, uri: Uri, mime: String, rangeHeader: String?): Response {
         val pfd = try {
@@ -26,7 +28,7 @@ object RangeHandler {
             return newChunkedResponse(Status.OK, mime, CountingInputStream(stream))
         }
 
-        val span = RangeParser.parse(rangeHeader, total)
+        val span = RangeParser.parse(rangeHeader, total, CHUNK)
         if (span == null) {
             stream.close()
             return newFixedLengthResponse(Status.RANGE_NOT_SATISFIABLE, "text/plain", "")

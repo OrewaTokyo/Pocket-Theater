@@ -57,4 +57,19 @@ class RangeParserTest {
         assertFalse(RangeParser.parse("items=1-2", 100)!!.partial)
         assertNotNull(RangeParser.parse("garbage", 100))
     }
+
+    @Test
+    fun longRangesAreCutToOnePiece() {
+        val open = RangeParser.parse("bytes=0-", 1000, 100)!!
+        assertEquals(0L, open.start)
+        assertEquals(99L, open.end)
+        assertTrue(open.partial)
+        val next = RangeParser.parse("bytes=100-", 1000, 100)!!
+        assertEquals(100L, next.start)
+        assertEquals(199L, next.end)
+        assertEquals(6L, RangeParser.parse("bytes=5-6", 1000, 100)!!.end) // a short range is left alone
+        val whole = RangeParser.parse(null, 1000, 100)!!
+        assertFalse(whole.partial) // no Range header means the whole file, as before
+        assertEquals(999L, whole.end)
+    }
 }

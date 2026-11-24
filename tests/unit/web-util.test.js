@@ -48,4 +48,6 @@ assert.strictEqual(u.pollDelay(true, 1), 1500);
 assert.strictEqual(u.pollDelay(false, 2), 2500);
 assert.strictEqual(u.pollDelay(false, 40), 6000);
 
+assert.strictEqual(PT.api.subtitleUrl("ab12", ["Movies", "a b.en.srt"]), "/subtitle?lib=ab12&path=Movies%2Fa%20b.en.srt");
+
 console.log("web-util OK");
