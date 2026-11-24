@@ -10,6 +10,31 @@ PT.viewer = {
     document.body.classList.add("noscroll");
   },
 
+  // Adds the subtitle choices to a video. The player's own CC button lists them, and the last choice is remembered.
+  addSubtitles(media, subs) {
+    if (!subs || !subs.length) return;
+    subs.forEach((s) => {
+      const track = PT.util.el("track", { kind: "subtitles", label: s.label, src: s.url });
+      if (s.lang) track.setAttribute("srclang", s.lang);
+      media.append(track);
+    });
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem("pt.subs") || "null"); } catch (err) { /* nothing saved */ }
+    const choose = () => {
+      const tracks = Array.from(media.textTracks);
+      const want = saved && !saved.off
+        ? tracks.find((t) => t.label === saved.label) || tracks.find((t) => saved.lang && t.language === saved.lang)
+        : null;
+      tracks.forEach((t) => { t.mode = t === want ? "showing" : "disabled"; });
+    };
+    media.addEventListener("loadedmetadata", choose);
+    media.textTracks.addEventListener("change", () => {
+      const showing = Array.from(media.textTracks).find((t) => t.mode === "showing");
+      saved = showing ? { label: showing.label, lang: showing.language } : { off: true };
+      try { localStorage.setItem("pt.subs", JSON.stringify(saved)); } catch (err) { /* storage is off */ }
+    });
+  },
+
   // Stops any video or audio, so nothing keeps playing out of sight.
   stopMedia() {
     document.querySelectorAll("#viewer video, #viewer audio").forEach((m) => {
@@ -102,6 +127,7 @@ PT.viewer = {
     if (item.kind === "video" || item.kind === "audio") {
       const media = el(item.kind, { src: item.url, controls: "", autoplay: "" });
       media.addEventListener("ended", () => this.step(1));
+      if (item.kind === "video") this.addSubtitles(media, item.subs);
       stage.append(media);
       this.stopGuard = this.guard(media, item.url, false);
     } else if (item.kind === "image") {

@@ -134,3 +134,9 @@ body.noscroll { overflow: hidden; }
 /* Shown instead of the player when the browser cannot play a file. */
 .unsupported { max-width: 520px; margin: 40px auto; padding: 24px; text-align: center; border-radius: 14px; background: var(--surface); border: 1px solid var(--surface-hi); }
 .unsupported a { display: inline-block; margin-top: 8px; padding: 10px 18px; border-radius: 10px; background: var(--marquee); color: var(--midnight); font-weight: 700; text-decoration: none; }
+
+.screen-name { display: block; font-weight: 700; }
+.screen-count { display: block; margin-top: 4px; color: var(--muted); }
+
+/* Subtitles in the video player. */
+video::cue { background: rgba(0, 0, 0, 0.72); color: #fff; font-size: 1.15rem; line-height: 1.35; }

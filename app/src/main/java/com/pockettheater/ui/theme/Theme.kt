@@ -1,5 +1,7 @@
 package com.pockettheater.ui.theme
 
+import com.pockettheater.R
+
 object Theme {
     val Midnight = 0xFF14112B.toInt()
     val Surface = 0xFF211B45.toInt()
@@ -21,6 +23,16 @@ object Theme {
         "Movies" -> Marquee
         "Games" -> Neon
         else -> Muted
+    }
+
+    /** The line icon for a shelf. */
+    fun categoryIcon(category: String): Int = when (category) {
+        "Series" -> R.drawable.ic_shelf_series
+        "Anime" -> R.drawable.ic_shelf_anime
+        "Movies" -> R.drawable.ic_shelf_movies
+        "Games" -> R.drawable.ic_shelf_games
+        "Documents" -> R.drawable.ic_shelf_docs
+        else -> R.drawable.ic_tab_folders
     }
 
     /** The shelf's name with its icon, as shown on the phone. */

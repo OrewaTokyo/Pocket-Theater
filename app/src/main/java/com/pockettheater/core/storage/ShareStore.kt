@@ -30,6 +30,10 @@ class ShareStore(context: Context) {
 
     fun remove(id: String) = save(libraries().filter { it.id != id })
 
+    /** Renames a shared folder or moves it to another shelf. The folder itself is not touched. */
+    fun update(id: String, name: String, category: String) =
+        save(libraries().map { if (it.id == id) it.copy(name = name, category = category) else it })
+
     private fun save(list: List<SharedLibrary>) {
         val arr = JSONArray()
         list.forEach {

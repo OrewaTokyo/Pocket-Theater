@@ -40,6 +40,7 @@ class MainActivity : Activity() {
     private lateinit var store: ShareStore
     private lateinit var browser: DocumentBrowser
     private lateinit var profile: ProfileScreen
+    private lateinit var folders: FoldersScreen
     private lateinit var screens: List<Screen>
     private lateinit var content: FrameLayout
     private lateinit var pinLock: PinLock
@@ -72,10 +73,11 @@ class MainActivity : Activity() {
         browser = DocumentBrowser(contentResolver)
         settings = AppSettings(this)
         pinLock = PinLock(this)
-        profile = ProfileScreen(this, pinLock) { pickFolder() }
+        profile = ProfileScreen(this, pinLock)
+        folders = FoldersScreen(this) { pickFolder() }
         screens = listOf(
             DashboardScreen(this),
-            FoldersScreen(this) { select(2); profile.openAdminTools() },
+            folders,
             profile
         )
         window.statusBarColor = Theme.Midnight
@@ -290,7 +292,7 @@ class MainActivity : Activity() {
             .setTitle("What is in \"$name\"?")
             .setItems(ShareStore.CATEGORIES.map { Theme.categoryLabel(it) }.toTypedArray()) { _, which ->
                 store.add(name, ShareStore.CATEGORIES[which], uri.toString())
-                profile.foldersChanged()
+                folders.reload()
             }
             .show()
     }

@@ -4,7 +4,7 @@
 2. The quick checks run first (folder layout, web helper tests). If one fails, nothing is built.
 3. The build then checks the APK itself (app id, version, Android 12 minimum, permissions, signature) and publishes it as a release.
 4. On the phone, open the repo's **Releases** page, download `PocketTheater-v….apk` and install it.
-5. Open Pocket Theater and tap **Add folder**. Pick a folder and choose what is in it (Series, Anime, Movies, Gaming and so on).
+5. Open the **Folders** tab in Pocket Theater and tap **Add folder**. Pick a folder and choose what is in it (Series, Anime, Movies, Gaming and so on).
 6. Tap **Open theater**. The phone shows the website link (https, port 8443). Open it from your laptop browser, or tap **QR code** and scan it with a phone or tablet.
    The first time, the browser warns that the connection is not private. That is because the phone made its own certificate. Open **Profile > Settings > Connection** (or the QR code window) to see the phone's fingerprint, compare it with the one in the browser's warning, then choose Advanced and continue.
 7. Each person taps **Request access** on the sign-in page and picks a username and password. You get a notification on the phone.
@@ -31,3 +31,9 @@ If you installed a build made before the permanent key existed, Android will ref
 3. On the phone, under **Devices on the website**, tap **Show QR** next to that laptop. A QR code appears on the laptop's screen.
 4. Tap **Scan QR** on the phone (or **Type code**), scan it, then type the admin password on the phone.
 5. The admin page opens on the laptop. It closes by itself after 30 minutes without use. **End admin** on the phone closes it at once.
+
+## Subtitles
+
+Put the subtitle file in the same folder as the video, with the same name: `Movie.mp4` and `Movie.srt`. For several languages add the language: `Movie.en.srt`, `Movie.fr.srt`, `Movie.en.forced.srt`. A `Subs` or `Subtitles` folder beside the video works too. Supported types are `.srt`, `.vtt`, `.ass` and `.ssa`. The phone turns them into the format browsers read.
+
+In the player, use the CC button to pick one. The choice is remembered for the next video. Subtitles built into an `.mkv` file are not read by browsers, so export them to a `.srt` file with a tool such as MKVToolNix.

@@ -5,8 +5,8 @@ object RangeParser {
     /** The bytes to send. `partial` is true when the browser asked for only a part. */
     class Span(val start: Long, val end: Long, val partial: Boolean)
 
-    /** Returns null when the request cannot be satisfied, which is answered with HTTP 416. */
-    fun parse(header: String?, total: Long): Span? {
+    /** Returns null when the request cannot be satisfied, which is answered with HTTP 416. A range longer than `maxChunk` is cut to that length. */
+    fun parse(header: String?, total: Long, maxChunk: Long = Long.MAX_VALUE): Span? {
         val whole = Span(0L, total - 1, false)
         if (header == null || !header.startsWith("bytes=")) return whole
         val spec = header.substring(6).substringBefore(',').trim()
@@ -27,6 +27,8 @@ object RangeParser {
             return whole
         }
         if (start < 0 || start >= total || start > end) return null
+        // Answer with one piece at a time. The browser simply asks for the next piece, so nothing is sent that is not needed.
+        if (end - start + 1 > maxChunk) end = start + maxChunk - 1
         return Span(start, end, true)
     }
 }

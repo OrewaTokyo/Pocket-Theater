@@ -42,6 +42,9 @@ PT.api = {
   list(lib, parts) {
     return this.json("/api/list?lib=" + encodeURIComponent(lib) + "&path=" + encodeURIComponent(parts.join("/")));
   },
+  subtitleUrl(lib, parts) {
+    return "/subtitle?lib=" + encodeURIComponent(lib) + "&path=" + encodeURIComponent(parts.join("/"));
+  },
   fileUrl(lib, parts) {
     return "/file?lib=" + encodeURIComponent(lib) + "&path=" + encodeURIComponent(parts.join("/"));
   },

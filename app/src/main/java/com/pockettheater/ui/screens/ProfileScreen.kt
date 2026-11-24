@@ -23,9 +23,9 @@ import com.pockettheater.ui.components.textView
 import com.pockettheater.ui.theme.Theme
 
 /** Who you are on this phone, with Admin tools and Settings one tap away. */
-class ProfileScreen(private val activity: Activity, pinLock: PinLock, onAddFolder: () -> Unit) : Screen {
+class ProfileScreen(private val activity: Activity, pinLock: PinLock) : Screen {
     private val users = UserStore(activity)
-    private val admin = AdminToolsPage(activity, onAddFolder)
+    private val admin = AdminToolsPage(activity)
     private val settings = SettingsPage(activity, pinLock)
     private val holder = FrameLayout(activity)
     private val waitingText = activity.textView("", 14f, Theme.Muted)
@@ -38,9 +38,6 @@ class ProfileScreen(private val activity: Activity, pinLock: PinLock, onAddFolde
     }
 
     fun openAdminTools() = open("Admin tools", admin)
-
-    /** Call after a folder was added, so the list in Admin tools updates. */
-    fun foldersChanged() = admin.reloadFolders()
 
     private fun open(title: String, body: Screen) {
         page = body

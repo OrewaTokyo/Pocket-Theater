@@ -1,0 +1,11 @@
+/* The sign-in background. The sky, comet, meteors, clouds and city are drawn by components/backdrop/backdrop.js on the
+   canvas. This file only holds the layer they sit in, a twilight colour for the moment before the script starts (or
+   if it cannot run), and a soft dark edge that makes the card easier to read. */
+
+.stage {
+  position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
+  background: linear-gradient(180deg, #1b1b5e 0%, #3b2f8f 25%, #7a4fb0 45%, #d9709f 62%, #ffb27a 78%, #0a0a22 78%);
+}
+.stage > * { position: absolute; }
+#backdrop { inset: 0; width: 100%; height: 100%; }
+.vignette { inset: 0; background: radial-gradient(ellipse at center, transparent 50%, rgba(5, 4, 20, 0.55) 100%); }
