@@ -1,4 +1,8 @@
 <resources>
     <color name="ic_launcher_background">#14112B</color>
     <color name="splash_bg">#0B0816</color>
+    <color name="theme_ink">#FFF3EEF8</color>
+    <color name="theme_ink_soft">#FFD9D3EE</color>
+    <color name="theme_muted">#FFA39BC4</color>
+    <color name="theme_marquee">#FFFFB547</color>
 </resources>

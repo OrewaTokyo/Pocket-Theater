@@ -47,12 +47,9 @@ class PinPad(context: Context, private val onSubmit: (String) -> Unit) : LinearL
         val ok = key == "OK"
         return context.textView(key, if (ok) 18f else 26f, if (ok) Theme.Midnight else Theme.Ink, bold = ok).apply {
             gravity = Gravity.CENTER
-            background = GradientDrawable().apply {
-                cornerRadius = context.dp(16).toFloat()
-                setColor(if (ok) Theme.Marquee else Theme.Surface)
-                if (!ok) setStroke(context.dp(1), Theme.Border)
-            }
+            background = if (ok) context.gradientFill(Theme.Marquee, 16) else context.glassDrawable(16)
             isClickable = true
+            pressFeedback()
             contentDescription = when (key) {
                 "\u232B" -> "Delete"
                 "OK" -> "Confirm"

@@ -5,7 +5,6 @@ import android.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
-import android.graphics.drawable.GradientDrawable
 import android.text.Editable
 import android.text.InputType
 import android.text.TextWatcher
@@ -36,6 +35,7 @@ import com.pockettheater.ui.components.WRAP
 import com.pockettheater.ui.components.card
 import com.pockettheater.ui.components.detach
 import com.pockettheater.ui.components.dp
+import com.pockettheater.ui.components.glassDrawable
 import com.pockettheater.ui.components.iconBadgeRes
 import com.pockettheater.ui.components.lp
 import com.pockettheater.ui.components.pillButton
@@ -139,11 +139,7 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
             setPadding(activity.dp(16), activity.dp(12), activity.dp(16), activity.dp(12))
             setCompoundDrawablesWithIntrinsicBounds(searchIcon, null, null, null)
             compoundDrawablePadding = activity.dp(10)
-            background = GradientDrawable().apply {
-                cornerRadius = activity.dp(16).toFloat()
-                setColor(Theme.Surface)
-                setStroke(activity.dp(1), Theme.Border)
-            }
+            background = activity.glassDrawable(16)
         }
         column.addView(search, activity.lp(MATCH, WRAP, top = 14))
 
@@ -571,7 +567,7 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
         val card = activity.card(0)
         rows.forEachIndexed { index, row ->
             if (index > 0) {
-                val line = View(activity).apply { setBackgroundColor(Theme.Border) }
+                val line = View(activity).apply { setBackgroundColor(Theme.Divider) }
                 card.addView(line, activity.lp(MATCH, 1))
             }
             card.addView(row, activity.lp(MATCH, WRAP))
@@ -620,11 +616,7 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
     private fun dropdown(label: String, onClick: () -> Unit): TextView =
         activity.textView(label + "  \u25BE", 15f, Theme.Ink, bold = true).apply {
             setPadding(activity.dp(14), activity.dp(10), activity.dp(14), activity.dp(10))
-            background = GradientDrawable().apply {
-                cornerRadius = activity.dp(12).toFloat()
-                setColor(Theme.Midnight)
-                setStroke(activity.dp(1), Theme.Border)
-            }
+            background = activity.glassDrawable(12)
             isClickable = true
             setOnClickListener { onClick() }
         }

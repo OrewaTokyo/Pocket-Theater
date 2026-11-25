@@ -12,6 +12,7 @@ PDFs and more. No internet, no accounts, no cloud.
 - 🎞️ Video streaming with seeking, plus an image and PDF viewer
 - 📊 Phone app with three tabs (Dashboard, Folders, Profile): Dashboard (open/close, link, wake time, users, data sent, requests, CPU, RAM, battery, traffic), Folders (shared folders by shelf, with counts, rename, move and stop sharing) and Profile (Admin tools, Settings)
 - 🔐 Optional PIN lock for the phone app (Profile > Settings > Privacy and data), with a hide-in-recent-apps switch and searchable, categorised settings
+- 🌌 A cinematic look on the phone: a living sky behind the app that slowly turns from golden twilight to night (clouds, stars, meteors, a comet and a city), frosted-glass panels, smooth gauges and page transitions. It stops when the app is closed and stays still in Battery Saver or when animations are off
 - 🖥️ Optional admin website: click Admin sign-in on the site, scan its QR code with the scanner built into the app and enter the admin password on the phone, and the admin tools open in the browser by themselves
 - 💬 Subtitles: put `.srt`, `.vtt`, `.ass` or `.ssa` files next to a video (for example `Movie.en.srt`) and they appear in the player's CC menu
 - 🙈 Empty folders, and shelves with nothing in them, stay hidden on the website until something is added

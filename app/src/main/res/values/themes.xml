@@ -5,5 +5,20 @@
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_blank</item>
         <item name="android:statusBarColor">@color/splash_bg</item>
         <item name="android:navigationBarColor">@color/splash_bg</item>
+        <item name="android:alertDialogTheme">@style/Theme.PocketTheater.Dialog</item>
+    </style>
+
+    <!-- The look of the whole app. Everything is drawn in code; this only styles the system dialogs. -->
+    <style name="Theme.PocketTheater" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:alertDialogTheme">@style/Theme.PocketTheater.Dialog</item>
+    </style>
+
+    <!-- Alert dialogs as frosted glass in the app's colours instead of flat grey. -->
+    <style name="Theme.PocketTheater.Dialog" parent="@android:style/Theme.Material.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/bg_dialog</item>
+        <item name="android:colorAccent">@color/theme_marquee</item>
+        <item name="android:colorControlActivated">@color/theme_marquee</item>
+        <item name="android:textColorPrimary">@color/theme_ink</item>
+        <item name="android:textColorSecondary">@color/theme_ink_soft</item>
     </style>
 </resources>

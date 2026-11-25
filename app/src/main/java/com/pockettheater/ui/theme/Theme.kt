@@ -16,6 +16,17 @@ object Theme {
     val SplashGlow = 0xFF2B1B52.toInt()
     val SplashEdge = 0xFF0B0816.toInt()
 
+    // Frosted glass: translucent so the moving sky shows through, lighter at the top like light on a pane.
+    val GlassTop = 0x9A2A2160.toInt()
+    val GlassBottom = 0x8A171240.toInt()
+    val GlassStroke = 0x40FFFFFF
+    val GlassSheen = 0x1CFFFFFF
+    val Divider = 0x1FFFFFFF
+    val Deep = 0xFF0B0816.toInt()
+    val Amber = 0xFFFFC65C.toInt()
+    val Orange = 0xFFFF9A3D.toInt()
+    val OnAmber = 0xFF1A1030.toInt()
+
     /** The shelf's colour. Same colours as the laptop site. */
     fun categoryColor(category: String): Int = when (category) {
         "Series" -> Cyan
