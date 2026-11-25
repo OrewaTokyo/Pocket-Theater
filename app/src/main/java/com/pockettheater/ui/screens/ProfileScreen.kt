@@ -21,6 +21,7 @@ import com.pockettheater.ui.components.detach
 import com.pockettheater.ui.components.dp
 import com.pockettheater.ui.components.iconBadgeRes
 import com.pockettheater.ui.components.lp
+import com.pockettheater.ui.components.slideIn
 import com.pockettheater.ui.components.textView
 import com.pockettheater.ui.theme.Theme
 
@@ -61,6 +62,7 @@ class ProfileScreen(private val activity: Activity, pinLock: PinLock) : Screen {
         (body.view.parent as? ViewGroup)?.removeView(body.view) // it may still sit in the previous frame
         framed.addView(body.view, activity.lp(MATCH, 0, 1f))
         show(framed)
+        framed.slideIn() // the page opened from the list glides in from the side
     }
 
     private fun showHome() {
@@ -75,7 +77,10 @@ class ProfileScreen(private val activity: Activity, pinLock: PinLock) : Screen {
         val meRow = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         val avatar = activity.textView("\uD83C\uDFAD", 30f, Theme.Ink).apply {
             gravity = Gravity.CENTER
-            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Theme.Border) }
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(0x55FFC65C, 0x55FF5FA2)).apply {
+                shape = GradientDrawable.OVAL
+                setStroke(activity.dp(2), 0x99FFC65C.toInt())
+            }
         }
         meRow.addView(avatar, activity.lp(activity.dp(64), activity.dp(64), right = 16))
         val names = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }

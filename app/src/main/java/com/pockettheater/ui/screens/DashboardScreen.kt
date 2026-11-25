@@ -1,6 +1,8 @@
 package com.pockettheater.ui.screens
 
 import android.app.Activity
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -14,6 +16,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import com.pockettheater.R
 import com.pockettheater.core.security.TlsIdentity
 import com.pockettheater.core.server.ServerStats
 import com.pockettheater.core.storage.UserStore
@@ -25,7 +28,8 @@ import com.pockettheater.ui.components.WRAP
 import com.pockettheater.ui.components.actionButton
 import com.pockettheater.ui.components.card
 import com.pockettheater.ui.components.dp
-import com.pockettheater.ui.components.iconBadge
+import com.pockettheater.ui.components.glassDrawable
+import com.pockettheater.ui.components.iconBadgeRes
 import com.pockettheater.ui.components.lp
 import com.pockettheater.ui.components.sectionLabel
 import com.pockettheater.ui.components.textView
@@ -47,6 +51,7 @@ class DashboardScreen(private val activity: Activity) : Screen {
     private var batteryUnrestricted = true
 
     private val statusDot = View(activity)
+    private var pulse: ObjectAnimator? = null
     private val statusText = activity.textView("", 13f, Theme.Muted, bold = true).apply { letterSpacing = 0.12f }
     private val linkView = activity.textView("", 20f, Theme.Marquee, bold = true).apply { setTextIsSelectable(true) }
     private val errorView = activity.textView("", 14f, Theme.Red)
@@ -84,7 +89,7 @@ class DashboardScreen(private val activity: Activity) : Screen {
 
     override val view: View = build()
 
-    private fun bigNumber(): TextView = activity.textView("-", 28f, Theme.Ink, bold = true)
+    private fun bigNumber(): TextView = activity.textView("-", 30f, Theme.Ink, light = true)
     private fun subText(center: Boolean = false): TextView =
         activity.textView("", 13f, Theme.Muted).apply { if (center) gravity = Gravity.CENTER }
 
@@ -96,10 +101,22 @@ class DashboardScreen(private val activity: Activity) : Screen {
 
         // Title and status
         val header = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        header.addView(activity.textView("Dashboard", 30f, Theme.Ink, bold = true), activity.lp(0, WRAP, 1f))
+        header.addView(activity.textView("Dashboard", 30f, Theme.Ink, light = true), activity.lp(0, WRAP, 1f))
         statusDot.background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Theme.Muted) }
-        header.addView(statusDot, activity.lp(activity.dp(10), activity.dp(10), right = 8))
-        header.addView(statusText)
+        statusDot.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            // no point pulsing while this page is not on screen
+            override fun onViewAttachedToWindow(v: View) { pulse?.resume() }
+            override fun onViewDetachedFromWindow(v: View) { pulse?.pause() }
+        })
+        val chip = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(activity.dp(12), activity.dp(7), activity.dp(14), activity.dp(7))
+            background = activity.glassDrawable(16)
+        }
+        chip.addView(statusDot, activity.lp(activity.dp(10), activity.dp(10), right = 8))
+        chip.addView(statusText)
+        header.addView(chip)
         column.addView(header)
 
         // Website link and the open/close button
@@ -138,15 +155,15 @@ class DashboardScreen(private val activity: Activity) : Screen {
         // Four numbers
         column.addView(
             pair(
-                statCard("\u23F1\uFE0F", Theme.Cyan, "WAKE TIME", wakeBig, wakeSub),
-                statCard("\uD83D\uDC65", Theme.Pink, "USERS", usersBig, usersSub)
+                statCard(R.drawable.ic_stat_clock, Theme.Cyan, "WAKE TIME", wakeBig, wakeSub),
+                statCard(R.drawable.ic_group, Theme.Pink, "USERS", usersBig, usersSub)
             ),
             activity.lp(MATCH, WRAP, top = 14)
         )
         column.addView(
             pair(
-                statCard("\uD83D\uDCE1", Theme.Neon, "DATA SENT", dataBig, dataSub),
-                statCard("\uD83C\uDF10", Theme.Marquee, "REQUESTS", requestsBig, requestsSub)
+                statCard(R.drawable.ic_stat_upload, Theme.Neon, "DATA SENT", dataBig, dataSub),
+                statCard(R.drawable.ic_stat_globe, Theme.Marquee, "REQUESTS", requestsBig, requestsSub)
             ),
             activity.lp(MATCH, WRAP, top = 12)
         )
@@ -174,9 +191,9 @@ class DashboardScreen(private val activity: Activity) : Screen {
         return ScrollView(activity).apply { addView(column) }
     }
 
-    private fun statCard(icon: String, tint: Int, caption: String, big: TextView, sub: TextView): View {
+    private fun statCard(icon: Int, tint: Int, caption: String, big: TextView, sub: TextView): View {
         val c = activity.card(16)
-        c.addView(activity.iconBadge(icon, tint))
+        c.addView(activity.iconBadgeRes(icon, tint, 42))
         c.addView(big, activity.lp(WRAP, WRAP, top = 12))
         c.addView(activity.textView(caption, 12f, Theme.Muted, bold = true).apply { letterSpacing = 0.12f })
         c.addView(sub, activity.lp(WRAP, WRAP, top = 2))
@@ -237,6 +254,24 @@ class DashboardScreen(private val activity: Activity) : Screen {
         Toast.makeText(activity, "Link copied", Toast.LENGTH_SHORT).show()
     }
 
+    /** The little dot beats slowly while the theater is open, like a heartbeat. */
+    private fun setPulsing(on: Boolean) {
+        if (on) {
+            if (pulse == null) {
+                pulse = ObjectAnimator.ofFloat(statusDot, "alpha", 1f, 0.3f).apply {
+                    duration = 900L
+                    repeatCount = ValueAnimator.INFINITE
+                    repeatMode = ValueAnimator.REVERSE
+                    start()
+                }
+            }
+        } else if (pulse != null) {
+            pulse?.cancel()
+            pulse = null
+            statusDot.alpha = 1f
+        }
+    }
+
     override fun refresh() {
         val open = ServerService.isRunning
         val error = ServerService.lastError
@@ -245,6 +280,7 @@ class DashboardScreen(private val activity: Activity) : Screen {
         statusText.text = if (starting) "STARTING" else if (open) "OPEN" else "CLOSED"
         statusText.setTextColor(if (open) Theme.Neon else Theme.Muted)
         (statusDot.background as GradientDrawable).setColor(if (open) Theme.Neon else Theme.Muted)
+        setPulsing(open && !starting)
 
         val now = SystemClock.elapsedRealtime()
         if (now - addressesAt > 4_000L) {

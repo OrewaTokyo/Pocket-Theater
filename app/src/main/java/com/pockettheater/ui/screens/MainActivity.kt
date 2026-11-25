@@ -15,6 +15,7 @@ import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.OvershootInterpolator
 import android.widget.ImageView
 import android.widget.ScrollView
 import android.widget.FrameLayout
@@ -28,9 +29,12 @@ import com.pockettheater.core.storage.ShareStore
 import com.pockettheater.service.ServerService
 import com.pockettheater.ui.components.MATCH
 import com.pockettheater.ui.components.PinPad
+import com.pockettheater.ui.components.SkyBackdrop
 import com.pockettheater.ui.components.WRAP
 import com.pockettheater.ui.components.dp
+import com.pockettheater.ui.components.glassDrawable
 import com.pockettheater.ui.components.lp
+import com.pockettheater.ui.components.staggerIn
 import com.pockettheater.ui.components.textView
 import com.pockettheater.ui.theme.Theme
 import com.pockettheater.ui.components.QrScanner
@@ -54,6 +58,8 @@ class MainActivity : Activity() {
     private val tabItems = ArrayList<LinearLayout>()
     private val tabIcons = ArrayList<ImageView>()
     private val tabLabels = ArrayList<TextView>()
+    private lateinit var tabRow: LinearLayout
+    private lateinit var tabIndicator: View
     private var tab = 0
     private val handler = Handler(Looper.getMainLooper())
     private val ticker = object : Runnable {
@@ -81,10 +87,12 @@ class MainActivity : Activity() {
             folders,
             profile
         )
-        window.statusBarColor = Theme.Midnight
-        window.navigationBarColor = Theme.Surface
+        window.statusBarColor = Theme.Deep
+        window.navigationBarColor = Theme.Deep
         lockView = buildLockView()
         setContentView(FrameLayout(this).apply {
+            setBackgroundColor(Theme.Deep)
+            addView(SkyBackdrop(this@MainActivity), FrameLayout.LayoutParams(MATCH, MATCH)) // the moving sky behind everything
             addView(buildShell(), FrameLayout.LayoutParams(MATCH, MATCH))
             addView(lockView, FrameLayout.LayoutParams(MATCH, MATCH))
         })
@@ -207,10 +215,7 @@ class MainActivity : Activity() {
 
     private fun buildShell(): View {
         content = FrameLayout(this)
-        val bar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(Theme.Surface)
-        }
+        tabRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val tabs = listOf(
             Triple(R.drawable.ic_tab_dashboard, "Dashboard", 0),
             Triple(R.drawable.ic_tab_folders, "Folders", 1),
@@ -235,37 +240,75 @@ class MainActivity : Activity() {
                 addView(labelView, lp(WRAP, WRAP, top = 2))
             }
             tabItems.add(item)
-            bar.addView(item, lp(0, WRAP, 1f, 8, 6, 8, 6))
+            tabRow.addView(item, lp(0, WRAP, 1f, 2, 4, 2, 4))
         }
 
-        val divider = View(this).apply { setBackgroundColor(Theme.Border) }
+        // The glowing pill that slides behind the chosen tab.
+        tabIndicator = View(this).apply {
+            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x40FFC65C, 0x1AFF9A3D)).apply {
+                cornerRadius = dp(18).toFloat()
+                setStroke(dp(1), 0x66FFC65C)
+            }
+        }
+        val bar = FrameLayout(this).apply {
+            background = glassDrawable(26)
+            elevation = dp(10).toFloat()
+            setPadding(dp(4), dp(2), dp(4), dp(2))
+            // fixed size, set once the row is measured: a MATCH-height View here would swell to the whole screen and drag the bar with it
+            addView(tabIndicator, FrameLayout.LayoutParams(1, 1).apply { setMargins(0, dp(4), 0, dp(4)) })
+            addView(tabRow, FrameLayout.LayoutParams(MATCH, WRAP))
+        }
+        tabRow.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> positionIndicator(false) }
+
+        // transparent, so the sky behind shows through the pages
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Theme.Midnight)
             addView(content, lp(MATCH, 0, 1f))
-            addView(divider, lp(MATCH, dp(1)))
-            addView(bar, lp(MATCH, WRAP))
+            addView(bar, lp(MATCH, WRAP, left = 12, top = 4, right = 12, bottom = 8))
+        }
+    }
+
+    /** Puts the sliding pill behind the chosen tab, gliding there when `animate` is true. */
+    private fun positionIndicator(animate: Boolean) {
+        if (tabRow.width == 0 || tabItems.isEmpty()) return
+        val cell = tabRow.width / tabItems.size.toFloat()
+        val params = tabIndicator.layoutParams as FrameLayout.LayoutParams
+        val wantedWidth = (cell - dp(4)).toInt()
+        val wantedHeight = (tabRow.height - dp(8)).coerceAtLeast(1)
+        if (params.width != wantedWidth || params.height != wantedHeight) {
+            params.width = wantedWidth
+            params.height = wantedHeight
+            tabIndicator.layoutParams = params
+        }
+        val x = tab * cell + dp(2) // the pill already starts at the row's left edge, so no tabRow.left here
+        if (animate) {
+            tabIndicator.animate().translationX(x).setDuration(320L).setInterpolator(OvershootInterpolator(0.8f)).start()
+        } else {
+            tabIndicator.animate().cancel()
+            tabIndicator.translationX = x
         }
     }
 
     private fun select(index: Int) {
+        val changed = index != tab || content.childCount == 0
         tab = index
         content.removeAllViews()
-        content.addView(screens[index].view, FrameLayout.LayoutParams(MATCH, MATCH))
+        val page = screens[index].view
+        content.addView(page, FrameLayout.LayoutParams(MATCH, MATCH))
         try {
             screens[index].refresh()
         } catch (e: Exception) {
             CrashLog.record(this, "opening " + screens[index].javaClass.simpleName, e)
         }
+        if (changed) page.staggerIn() // the page's blocks drift in one after another
         for (i in tabIcons.indices) {
             val on = i == index
             tabIcons[i].setColorFilter(if (on) Theme.Marquee else Theme.Muted)
             tabLabels[i].setTextColor(if (on) Theme.Marquee else Theme.Muted)
-            tabItems[i].background = if (on) GradientDrawable().apply {
-                cornerRadius = dp(16).toFloat()
-                setColor(0x22FFB547)
-            } else null
+            val scale = if (on) 1.15f else 1f
+            tabIcons[i].animate().scaleX(scale).scaleY(scale).setDuration(220L).start()
         }
+        positionIndicator(changed)
     }
 
     private fun pickFolder() {

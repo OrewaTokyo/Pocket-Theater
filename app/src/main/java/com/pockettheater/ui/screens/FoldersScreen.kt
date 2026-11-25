@@ -24,6 +24,8 @@ import com.pockettheater.ui.components.WRAP
 import com.pockettheater.ui.components.actionButton
 import com.pockettheater.ui.components.card
 import com.pockettheater.ui.components.dp
+import com.pockettheater.ui.components.glassDrawable
+import com.pockettheater.ui.components.gradientFill
 import com.pockettheater.ui.components.iconBadgeRes
 import com.pockettheater.ui.components.lp
 import com.pockettheater.ui.components.pillButton
@@ -145,13 +147,8 @@ class FoldersScreen(private val activity: Activity, private val onAddFolder: () 
     private fun chip(label: String, count: Int, color: Int, selected: Boolean, onClick: () -> Unit): View =
         activity.textView("$label  $count", 14f, if (selected) Theme.Midnight else Theme.Ink, bold = true).apply {
             setPadding(activity.dp(16), activity.dp(9), activity.dp(16), activity.dp(9))
-            background = GradientDrawable().apply {
-                cornerRadius = activity.dp(20).toFloat()
-                if (selected) setColor(color) else {
-                    setColor(Theme.Surface)
-                    setStroke(activity.dp(1), color)
-                }
-            }
+            background = if (selected) activity.gradientFill(color, 20)
+            else activity.glassDrawable(20, strokeColor = (color and 0x00FFFFFF) or 0xCC000000.toInt())
             isClickable = true
             setOnClickListener { onClick() }
             layoutParams = activity.lp(WRAP, WRAP, right = 8)
@@ -173,7 +170,13 @@ class FoldersScreen(private val activity: Activity, private val onAddFolder: () 
             setOnClickListener { actions(lib) }
         }
         val row = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL }
-        row.addView(View(activity).apply { setBackgroundColor(accent) }, activity.lp(activity.dp(5), MATCH))
+        row.addView(
+            View(activity).apply {
+                // the colour bar down the side of a folder fades towards the bottom, like light on glass
+                background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(accent, (accent and 0x00FFFFFF) or 0x55000000))
+            },
+            activity.lp(activity.dp(5), MATCH)
+        )
 
         val body = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
