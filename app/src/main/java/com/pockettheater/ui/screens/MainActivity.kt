@@ -263,7 +263,7 @@ class MainActivity : Activity() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(content, lp(MATCH, 0, 1f))
-            addView(bar, lp(MATCH, WRAP, 12, 4, 12, 8))
+            addView(bar, lp(MATCH, WRAP, left = 12, top = 4, right = 12, bottom = 8))
         }
     }
 
