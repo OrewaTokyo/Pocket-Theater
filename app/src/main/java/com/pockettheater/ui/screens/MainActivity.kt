@@ -254,7 +254,8 @@ class MainActivity : Activity() {
             background = glassDrawable(26)
             elevation = dp(10).toFloat()
             setPadding(dp(4), dp(2), dp(4), dp(2))
-            addView(tabIndicator, FrameLayout.LayoutParams(1, MATCH).apply { setMargins(0, dp(4), 0, dp(4)) })
+            // fixed size, set once the row is measured: a MATCH-height View here would swell to the whole screen and drag the bar with it
+            addView(tabIndicator, FrameLayout.LayoutParams(1, 1).apply { setMargins(0, dp(4), 0, dp(4)) })
             addView(tabRow, FrameLayout.LayoutParams(MATCH, WRAP))
         }
         tabRow.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> positionIndicator(false) }
@@ -272,12 +273,14 @@ class MainActivity : Activity() {
         if (tabRow.width == 0 || tabItems.isEmpty()) return
         val cell = tabRow.width / tabItems.size.toFloat()
         val params = tabIndicator.layoutParams as FrameLayout.LayoutParams
-        val wanted = (cell - dp(4)).toInt()
-        if (params.width != wanted) {
-            params.width = wanted
+        val wantedWidth = (cell - dp(4)).toInt()
+        val wantedHeight = (tabRow.height - dp(8)).coerceAtLeast(1)
+        if (params.width != wantedWidth || params.height != wantedHeight) {
+            params.width = wantedWidth
+            params.height = wantedHeight
             tabIndicator.layoutParams = params
         }
-        val x = tabRow.left + tab * cell + dp(2)
+        val x = tab * cell + dp(2) // the pill already starts at the row's left edge, so no tabRow.left here
         if (animate) {
             tabIndicator.animate().translationX(x).setDuration(320L).setInterpolator(OvershootInterpolator(0.8f)).start()
         } else {
