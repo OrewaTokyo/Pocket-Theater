@@ -19,9 +19,6 @@ import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
-import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.pockettheater.R
 import com.pockettheater.core.security.AdminPassword
 import com.pockettheater.core.security.Auth
@@ -287,8 +284,13 @@ class SettingsPage(private val activity: Activity, private val pinLock: PinLock)
                 listOf(
                     row(
                         "Allow the admin website",
-                        "Open admin tools in a browser on another device. You scan a QR code with this phone and enter the admin password. Needs HTTPS and the theater open. Off by default.",
+                        "Open admin tools in a browser on another device. On the website tap Admin sign-in, scan its QR code with this phone and enter the admin password here. Needs HTTPS and the theater open. Off by default.",
                         switchView(settings.adminWebEnabled) { on -> changeAdminWeb(on) }
+                    ),
+                    row(
+                        "Scan the website's QR code",
+                        "Use the scanner built into this app. The website opens as admin as soon as the password is right.",
+                        activity.pillButton("Scan QR", Theme.Marquee) { pairing.scan() }
                     ),
                     row(
                         "Admin password",

@@ -10,7 +10,9 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import com.pockettheater.R
+import com.pockettheater.core.security.AdminPassword
 import com.pockettheater.core.security.PinLock
+import com.pockettheater.core.storage.AppSettings
 import com.pockettheater.core.storage.UserStore
 import com.pockettheater.ui.components.MATCH
 import com.pockettheater.ui.components.WRAP
@@ -27,6 +29,7 @@ class ProfileScreen(private val activity: Activity, pinLock: PinLock) : Screen {
     private val users = UserStore(activity)
     private val admin = AdminToolsPage(activity)
     private val settings = SettingsPage(activity, pinLock)
+    private val pairing = AdminPairing(activity, AdminPassword(activity), AppSettings(activity), {}, {})
     private val holder = FrameLayout(activity)
     private val waitingText = activity.textView("", 14f, Theme.Muted)
     private var page: Screen? = null
@@ -83,6 +86,10 @@ class ProfileScreen(private val activity: Activity, pinLock: PinLock) : Screen {
         column.addView(me, activity.lp(MATCH, WRAP, top = 18))
 
         column.addView(menuRow(R.drawable.ic_build, Theme.Marquee, "Admin tools", waitingText) { open("Admin tools", admin) }, activity.lp(MATCH, WRAP, top = 16))
+        column.addView(
+            menuRow(R.drawable.ic_qr_scan, Theme.Cyan, "Scan admin QR", activity.textView("Open the admin website on a laptop", 14f, Theme.Muted)) { pairing.scan() },
+            activity.lp(MATCH, WRAP, top = 12)
+        )
         column.addView(menuRow(R.drawable.ic_settings, Theme.Cyan, "Settings", null) { open("Settings", settings) }, activity.lp(MATCH, WRAP, top = 12))
 
         show(ScrollView(activity).apply { addView(column) })

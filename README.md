@@ -12,7 +12,7 @@ PDFs and more. No internet, no accounts, no cloud.
 - 🎞️ Video streaming with seeking, plus an image and PDF viewer
 - 📊 Phone app with three tabs (Dashboard, Folders, Profile): Dashboard (open/close, link, wake time, users, data sent, requests, CPU, RAM, battery, traffic), Folders (shared folders by shelf, with counts, rename, move and stop sharing) and Profile (Admin tools, Settings)
 - 🔐 Optional PIN lock for the phone app (Profile > Settings > Privacy and data), with a hide-in-recent-apps switch and searchable, categorised settings
-- 🖥️ Optional admin website: open admin tools in a browser by scanning a QR code with the phone and entering the admin password
+- 🖥️ Optional admin website: click Admin sign-in on the site, scan its QR code with the scanner built into the app and enter the admin password on the phone, and the admin tools open in the browser by themselves
 - 💬 Subtitles: put `.srt`, `.vtt`, `.ass` or `.ssa` files next to a video (for example `Movie.en.srt`) and they appear in the player's CC menu
 - 🙈 Empty folders, and shelves with nothing in them, stay hidden on the website until something is added
 - 🔏 HTTPS with a certificate the phone makes itself, plus a QR code to open the link on another device
